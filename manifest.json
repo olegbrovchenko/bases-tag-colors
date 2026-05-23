@@ -1,0 +1,10 @@
+{
+  "id": "bases-local-colors",
+  "name": "Bases Local Colors",
+  "version": "1.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Per-base color configs via sibling *.colors.json files. No global tag-soup.",
+  "author": "Oleg Brovchenko",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}
