@@ -23,9 +23,9 @@ export function tagLeaf(leaf: WorkspaceLeaf, basePath: string): HTMLElement | nu
 	const containerEl = view.containerEl;
 	if (!containerEl) return null;
 
-	const rootEl =
-		(containerEl.querySelector('.bases-view') as HTMLElement | null) ??
-		containerEl;
+	const basesView = containerEl.querySelector('.bases-view') as HTMLElement | null;
+	if (!basesView) console.warn('[BasesLocalColors] .bases-view selector not found — Obsidian Bases DOM may have changed');
+	const rootEl = basesView ?? containerEl;
 	rootEl.setAttribute('data-bases-local-colors-id', basePath);
 	return rootEl;
 }

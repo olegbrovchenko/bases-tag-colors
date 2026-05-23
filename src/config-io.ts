@@ -23,15 +23,14 @@ export async function loadConfig(app: App, basePath: string): Promise<ColorConfi
 		if (!exists) return { ...DEFAULT_COLOR_CONFIG };
 
 		const raw = await app.vault.adapter.read(colorsPath);
-		const parsed = JSON.parse(raw) as ColorConfig;
+		const parsed = JSON.parse(raw);
 
-		if (parsed.version !== 1) {
-			console.warn(`[BasesLocalColors] Unknown config version ${parsed.version} at ${colorsPath}`);
+		if (parsed.version !== 1) return { ...DEFAULT_COLOR_CONFIG };
+		if (typeof parsed.columns !== 'object' || parsed.columns === null || Array.isArray(parsed.columns)) {
 			return { ...DEFAULT_COLOR_CONFIG };
 		}
 
-		console.log(`[BasesLocalColors] Loaded config: ${JSON.stringify(parsed)}`);
-		return parsed;
+		return parsed as ColorConfig;
 	} catch (e) {
 		console.warn(`[BasesLocalColors] Failed to load config at ${colorsPath}:`, e);
 		return { ...DEFAULT_COLOR_CONFIG };
@@ -63,6 +62,20 @@ export function generateColorFromText(sanitized: string): string {
 	const g = 80 + Math.abs(hash >> 8) % 120;
 	const b = 80 + Math.abs(hash >> 16) % 120;
 	return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// Parse the .base YAML to extract which column keys are defined in that base.
+// Returns null if the file can't be read or has no properties block.
+export async function parseBaseColumns(app: App, basePath: string): Promise<Set<string> | null> {
+	try {
+		const raw = await app.vault.adapter.read(basePath);
+		const match = raw.match(/^properties:\s*\n((?:[ \t]+\S[^\n]*\n?)*)/m);
+		if (!match) return null;
+		const keys = [...match[1].matchAll(/^[ \t]+([\w.]+):/gm)].map(m => m[1]);
+		return keys.length ? new Set(keys) : null;
+	} catch {
+		return null;
+	}
 }
 
 // Walks the rendered view root, collects (column, rawText) pairs, fills placeholder colors.

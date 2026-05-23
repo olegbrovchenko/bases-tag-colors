@@ -24,8 +24,6 @@ export default class BasesLocalColorsPlugin extends Plugin {
 	private colorsModifyDebounce: Map<string, number> = new Map();
 
 	async onload() {
-		console.log('Bases Local Colors loaded');
-
 		this.styles = new StyleManager();
 
 		// B1/B2 + D3/D4: activate leaf when it becomes active
@@ -34,8 +32,6 @@ export default class BasesLocalColorsPlugin extends Plugin {
 				if (!leaf) return;
 				if (leaf.view?.getViewType() === 'bases') {
 					this.activateLeaf(leaf);
-				} else {
-					console.log('[BasesLocalColors] Not a bases view');
 				}
 			})
 		);
@@ -63,7 +59,6 @@ export default class BasesLocalColorsPlugin extends Plugin {
 				const timer = window.setTimeout(() => {
 					this.colorsModifyDebounce.delete(file.path);
 					const basePath = basePathFromColorsPath(file.path);
-					console.log(`[BasesLocalColors] config modified, reloading for ${basePath}`);
 					this.applyToBase(basePath);
 				}, 100);
 
@@ -120,7 +115,6 @@ export default class BasesLocalColorsPlugin extends Plugin {
 		// Disconnect stale state if leaf was reused for a different base
 		if (existing) this.deactivateLeaf(leaf);
 
-		console.log(`[BasesLocalColors] Bases view active: ${basePath}`);
 		const rootEl = tagLeaf(leaf, basePath);
 		if (!rootEl) return;
 
@@ -224,6 +218,5 @@ export default class BasesLocalColorsPlugin extends Plugin {
 
 		for (const leaf of [...this.activeLeaves.keys()]) this.deactivateLeaf(leaf);
 		this.styles.destroy();
-		console.log('Bases Local Colors unloaded');
 	}
 }

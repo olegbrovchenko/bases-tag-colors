@@ -1,63 +1,70 @@
 # Bases Local Colors
 
-Per-base color configs for Obsidian Bases views via sibling `*.colors.json` files.
-No global tag-soup. Colors travel with your base, not with your plugin settings.
+**Bring life to your tags. Per-base. No global mess.**
 
-**v1.1** — Settings UI: color picker + hex input + search bar, all inside Obsidian Settings.
-
----
-
-## Install
-
-Copy the plugin folder to `.obsidian/plugins/bases-local-colors/`, then:
-```
-cd .obsidian/plugins/bases-local-colors
-npm install && npm run build
-```
-Enable in **Settings → Community plugins → Bases Local Colors**.
+![Preview](preview.png)
 
 ---
 
-## How to add a color for a new value
+Obsidian Bases has zero native pill colors. Bases Local Colors fixes that — each `.base` file gets its own color palette stored in a sibling `.colors.json`. Colors follow the file. Nothing bleeds between bases.
 
-1. Open the `.base` file whose pill you want to color.
-2. Run **"Bases Local Colors: Open color config for current base"** — creates a sibling `*.colors.json` if it doesn't exist.
-3. Edit the JSON. Example:
+## Features
+
+- **Per-base palettes** — each `.base` file gets a sibling `.colors.json`
+- **Visual settings UI** — color picker, hex input, search bar. No manual JSON editing
+- **Live in 100ms** — edit the color, real time update
+- **Auto base detection** — automatically detects your active base
+
+---
+
+## Installation
+
+### Community Plugin Store (recommended)
+
+1. Open Obsidian → Settings → Community Plugins
+2. Search **Bases Local Colors**
+3. Install and enable
+
+### Manual
+
+1. Download `main.js`, `styles.css`, `manifest.json` from the [latest release](../../releases/latest)
+2. Drop them into `.obsidian/plugins/bases-local-colors/`
+3. Enable the plugin in Settings → Community Plugins
+
+---
+
+## How to use
+
+1. Open any `.base` file
+2. Go to **Settings → Bases Local Colors**
+3. Your active base is auto-selected — click **Import from active base**
+4. Tweak colors with the built-in picker
+
+---
+
+## Config format
+
+Colors live in a sibling file next to your `.base`:
 
 ```json
 {
   "version": 1,
   "columns": {
-    "note.action": {
-      "B-Roll": "#78b7b8",
-      "VFX":    "#9a5cb8"
-    },
     "*": {
-      "Wide": "#3a8c5c"
+      "B-Roll": "#78b7b8",
+      "VFX": "#9a5cb8"
+    },
+    "note.status": {
+      "Done": "#3a8c5c"
     }
   }
 }
 ```
 
-- `"note.action"` → applies only to pills in the `action` column
-- `"*"` → applies to matching pills in any column of this base
-- Column match wins over `*` when both exist for the same value
+- `"*"` — applies to any column in this base
+- `"note.status"` — applies only in that specific column (wins over `*`)
 
-Save the file — colors apply within 100ms without reloading Obsidian.
-
----
-
-## Settings UI (v1.1)
-
-Open **Settings → Community Plugins → Bases Local Colors** (gear icon).
-
-- **Base selector** — auto-detects the active base; pick any other from the dropdown
-- **Search bar** — filter values by name instantly (useful for large bases with many tags)
-- **Per-value row** — colored swatch · column badge · value name · color picker · hex input · remove button
-- **Add value** — type a name, pick a color, click `+ Add`
-- **Import from active base** — pulls all visible pill values into the list with placeholder colors (only adds new ones, never overwrites existing)
-
-Every change saves to the sibling `.colors.json` and applies live to any open base view.
+Save the file — colors update live, no restart needed.
 
 ---
 
@@ -65,66 +72,34 @@ Every change saves to the sibling `.colors.json` and applies live to any open ba
 
 | Command | What it does |
 |---|---|
-| **Open color config for current base** | Opens `*.colors.json` sibling (creates skeleton if missing) |
-| **Seed config from current base values** | Walks rendered pills, fills placeholder colors, writes JSON |
-| **Reload color config** | Re-reads `*.colors.json` and re-applies to active base |
-| **Migrate from colored-bases-properties (current base)** | Reads old plugin's `data.json`, copies colors for visible pills, writes to sibling JSON |
+| Open color config for current base | Opens the `.colors.json` (creates skeleton if missing) |
+| Seed config from current base values | Walks visible pills, pre-fills placeholder colors |
+| Reload color config | Manual refresh without reopening the base |
+| Migrate from colored-bases-properties | Copies your old colors into this base's own JSON |
 
 ---
 
-## Schema
+## Migrating from colored-bases-properties
 
-```
-projects/MyBase.base
-projects/MyBase.colors.json   ← sibling, same folder
-```
+Open your base → Settings → select it → click **Import from active base**.  
+The old plugin's `data.json` is read-only — nothing is modified.
 
-**`colors.json` shape:**
-```json
-{
-  "version": 1,
-  "columns": {
-    "<property-name or *>": {
-      "<raw pill text>": "<hex color>"
-    }
-  }
-}
-```
-
-- `version` must be `1`
-- Keys under `columns` are the property (column) names from your base, or `"*"` for any column
-- Values are the exact text shown inside the pill (before sanitization)
-- Colors are CSS hex strings (`#rrggbb`)
+Rollback: disable this plugin → all injected colors and DOM changes revert automatically.
 
 ---
 
-## Migration from colored-bases-properties
+## Known limitations
 
-1. Open your `.base` file in Obsidian.
-2. Run **"Migrate from colored-bases-properties (current base)"**.
-3. Check the generated `*.colors.json` — it contains only values visible in this base.
-4. Repeat for each base you want to migrate.
-5. Disable `colored-bases-properties` when all bases are migrated.
-
-The old plugin's `data.json` is never modified — read-only during migration.
-
-**Rollback:** disable `Bases Local Colors` — `deactivateLeaf` reverts all DOM changes on unload. Re-enable `colored-bases-properties`. No data loss.
-
----
-
-## Known limitations (v1)
-
-- Single-value cells (plain text, not pills) are not colored — v2 feature
-- No in-app color picker — edit the JSON directly or use VS Code
-- No formula property coloring
-- Inline tag coloring (markdown view) not supported
-- Embedded bases (`![[Base.base]]`) not supported
-- No auto-color for unconfigured values — intentional, no surprise colors
+- Single-value (non-array) cells not colored
+- No embedded base support (`![[Base.base]]`)
 
 ---
 
 ## Uninstall
 
-1. Disable plugin in **Settings → Community plugins**.
-2. Delete `.obsidian/plugins/bases-local-colors/`.
-3. The `*.colors.json` sibling files remain in your vault (harmless). Delete them manually if desired.
+Disable the plugin — all injected colors revert automatically.  
+Your `.colors.json` files remain in the vault (harmless). Delete manually if desired.
+
+---
+
+Made by [Oleg Brovchenko](https://github.com/olegbrovchenko)

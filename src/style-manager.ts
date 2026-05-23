@@ -13,7 +13,7 @@ export class StyleManager {
 
 	private getOrCreate(): HTMLStyleElement {
 		let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
-		if (!el) {
+		if (!el || !el.isConnected) {
 			el = document.createElement('style');
 			el.id = STYLE_ID;
 			el.type = 'text/css';
@@ -30,7 +30,7 @@ export class StyleManager {
 
 		for (const [col, colorMap] of Object.entries(config.columns)) {
 			for (const [rawValue, color] of Object.entries(colorMap)) {
-				if (!color) continue;
+				if (!color || !/^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$|^rgba?\(/.test(color)) continue;
 				const sanitized = sanitizeValue(rawValue);
 				if (!sanitized) continue;
 
