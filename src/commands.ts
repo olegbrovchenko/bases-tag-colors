@@ -7,12 +7,12 @@ import { DEFAULT_COLOR_CONFIG } from './types';
 export async function cmdOpenColorConfig(app: App): Promise<void> {
 	const leaf = app.workspace.activeLeaf;
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
-		new Notice('Bases Local Colors: open a .base file first');
+		new Notice('Bases Tag Colors: open a .base file first');
 		return;
 	}
 	const basePath = getBasePath(leaf);
 	if (!basePath) {
-		new Notice('Bases Local Colors: could not resolve base file path');
+		new Notice('Bases Tag Colors: could not resolve base file path');
 		return;
 	}
 	const colorsPath = colorsPathFromBasePath(basePath);
@@ -30,12 +30,12 @@ export async function cmdOpenColorConfig(app: App): Promise<void> {
 export async function cmdSeedFromCurrentBase(app: App): Promise<void> {
 	const leaf = app.workspace.activeLeaf;
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
-		new Notice('Bases Local Colors: open a .base file first');
+		new Notice('Bases Tag Colors: open a .base file first');
 		return;
 	}
 	const basePath = getBasePath(leaf);
 	if (!basePath) {
-		new Notice('Bases Local Colors: could not resolve base file path');
+		new Notice('Bases Tag Colors: could not resolve base file path');
 		return;
 	}
 
@@ -53,7 +53,7 @@ export async function cmdSeedFromCurrentBase(app: App): Promise<void> {
 
 	await saveConfig(app, basePath, seeded);
 	const colorsPath = colorsPathFromBasePath(basePath);
-	new Notice(`Bases Local Colors: wrote ${totalEntries} entries to ${colorsPath}`);
+	new Notice(`Bases Tag Colors: wrote ${totalEntries} entries to ${colorsPath}`);
 }
 
 // Reloads the *.colors.json and re-applies colors for the active base.
@@ -63,16 +63,16 @@ export async function cmdReloadColorConfig(
 ): Promise<void> {
 	const leaf = app.workspace.activeLeaf;
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
-		new Notice('Bases Local Colors: open a .base file first');
+		new Notice('Bases Tag Colors: open a .base file first');
 		return;
 	}
 	const basePath = getBasePath(leaf);
 	if (!basePath) {
-		new Notice('Bases Local Colors: could not resolve base file path');
+		new Notice('Bases Tag Colors: could not resolve base file path');
 		return;
 	}
 	await applyToBase(basePath);
-	new Notice('Bases Local Colors: config reloaded');
+	new Notice('Bases Tag Colors: config reloaded');
 }
 
 // Reads old plugin's data.json, migrates colors for currently-visible pills.
@@ -82,19 +82,19 @@ export async function cmdMigrateFromOldPlugin(
 ): Promise<void> {
 	const leaf = app.workspace.activeLeaf;
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
-		new Notice('Bases Local Colors: open a .base file first');
+		new Notice('Bases Tag Colors: open a .base file first');
 		return;
 	}
 	const basePath = getBasePath(leaf);
 	if (!basePath) {
-		new Notice('Bases Local Colors: could not resolve base file path');
+		new Notice('Bases Tag Colors: could not resolve base file path');
 		return;
 	}
 
 	const oldDataPath = '.obsidian/plugins/colored-bases-properties/data.json';
 	const oldExists = await app.vault.adapter.exists(oldDataPath);
 	if (!oldExists) {
-		new Notice('Bases Local Colors: colored-bases-properties not found — nothing to migrate');
+		new Notice('Bases Tag Colors: colored-bases-properties not found — nothing to migrate');
 		return;
 	}
 
@@ -104,7 +104,7 @@ export async function cmdMigrateFromOldPlugin(
 		const parsed = JSON.parse(raw) as { pillColors?: Record<string, string> };
 		oldPillColors = parsed.pillColors ?? {};
 	} catch {
-		new Notice('Bases Local Colors: failed to read old plugin data');
+		new Notice('Bases Tag Colors: failed to read old plugin data');
 		return;
 	}
 
@@ -141,5 +141,5 @@ export async function cmdMigrateFromOldPlugin(
 	await applyToBase(basePath);
 
 	const colorsPath = colorsPathFromBasePath(basePath);
-	new Notice(`Bases Local Colors: migrated ${migrated} of ${total} values to ${colorsPath}`);
+	new Notice(`Bases Tag Colors: migrated ${migrated} of ${total} values to ${colorsPath}`);
 }

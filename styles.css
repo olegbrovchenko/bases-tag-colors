@@ -1,4 +1,4 @@
-/* Bases Local Colors — static base styles */
+/* Bases Tag Colors — static base styles */
 .multi-select-pill[data-blc-value] {
 	transition: background-color 100ms ease;
 }

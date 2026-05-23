@@ -32,7 +32,7 @@ export async function loadConfig(app: App, basePath: string): Promise<ColorConfi
 
 		return parsed as ColorConfig;
 	} catch (e) {
-		console.warn(`[BasesLocalColors] Failed to load config at ${colorsPath}:`, e);
+		console.warn(`[BasesTagColors] Failed to load config at ${colorsPath}:`, e);
 		return { ...DEFAULT_COLOR_CONFIG };
 	}
 }
@@ -42,7 +42,7 @@ export async function saveConfig(app: App, basePath: string, config: ColorConfig
 	try {
 		await app.vault.adapter.write(colorsPath, JSON.stringify(config, null, 2));
 	} catch (e) {
-		console.error(`[BasesLocalColors] Failed to save config at ${colorsPath}:`, e);
+		console.error(`[BasesTagColors] Failed to save config at ${colorsPath}:`, e);
 	}
 }
 

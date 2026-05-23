@@ -1,17 +1,17 @@
 import { App, Notice, PluginSettingTab } from 'obsidian';
-import type BasesLocalColorsPlugin from '../main';
+import type BasesTagColorsPlugin from '../main';
 import { listBasesInVault, loadConfig, saveConfig, sanitizeValue, seedConfigFromView, parseBaseColumns } from './config-io';
 import { ColorConfig } from './types';
 import { getBasePath } from './base-view';
 
-export class BasesLocalColorsSettingTab extends PluginSettingTab {
-	private plugin: BasesLocalColorsPlugin;
+export class BasesTagColorsSettingTab extends PluginSettingTab {
+	private plugin: BasesTagColorsPlugin;
 	private selectedBase: string = '';
 	private config: ColorConfig = { version: 1, columns: {} };
 	private searchQuery: string = '';
 	private debounceTimer: number | null = null;
 
-	constructor(app: App, plugin: BasesLocalColorsPlugin) {
+	constructor(app: App, plugin: BasesTagColorsPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -30,7 +30,7 @@ export class BasesLocalColorsSettingTab extends PluginSettingTab {
 
 		// ── 1. Hero ──
 		const hero = containerEl.createDiv({ cls: 'blc-hero' });
-		hero.createEl('p', { text: 'BASES LOCAL COLORS', cls: 'blc-hero-eyebrow' });
+		hero.createEl('p', { text: 'BASES TAG COLORS', cls: 'blc-hero-eyebrow' });
 		hero.createEl('h1', { text: 'Bring life to your tags.', cls: 'blc-hero-title' });
 		hero.createEl('p', { text: 'v1.1 By Oleg Brovchenko', cls: 'blc-hero-meta' });
 
@@ -161,8 +161,8 @@ export class BasesLocalColorsSettingTab extends PluginSettingTab {
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-yellow' });
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-green' });
 		windowChrome.createEl('span', { text: 'YouTube Ideas.base', cls: 'blc-window-title' });
-		const img = windowFrame.createEl('img', { cls: 'blc-preview-img', attr: { alt: 'Bases Local Colors in action' } });
-		const pluginDir = (this.plugin.manifest as { dir?: string }).dir ?? '.obsidian/plugins/bases-local-colors';
+		const img = windowFrame.createEl('img', { cls: 'blc-preview-img', attr: { alt: 'Bases Tag Colors in action' } });
+		const pluginDir = (this.plugin.manifest as { dir?: string }).dir ?? '.obsidian/plugins/bases-tag-colors';
 		img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
 
 		// Sign-off — last element

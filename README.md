@@ -1,4 +1,4 @@
-# Bases Local Colors
+# Bases Tag Colors
 
 **Bring life to your tags. Per-base. No global mess.**
 
@@ -6,7 +6,7 @@
 
 ---
 
-Obsidian Bases has zero native pill colors. Bases Local Colors fixes that — each `.base` file gets its own color palette stored in a sibling `.colors.json`. Colors follow the file. Nothing bleeds between bases.
+Obsidian Bases has zero native pill colors. Bases Tag Colors fixes that — each `.base` file gets its own color palette stored in a sibling `.colors.json`. Colors follow the file. Nothing bleeds between bases.
 
 ## Features
 
@@ -22,13 +22,13 @@ Obsidian Bases has zero native pill colors. Bases Local Colors fixes that — ea
 ### Community Plugin Store (recommended)
 
 1. Open Obsidian → Settings → Community Plugins
-2. Search **Bases Local Colors**
+2. Search **Bases Tag Colors**
 3. Install and enable
 
 ### Manual
 
 1. Download `main.js`, `styles.css`, `manifest.json` from the [latest release](../../releases/latest)
-2. Drop them into `.obsidian/plugins/bases-local-colors/`
+2. Drop them into `.obsidian/plugins/bases-tag-colors/`
 3. Enable the plugin in Settings → Community Plugins
 
 ---
@@ -36,7 +36,7 @@ Obsidian Bases has zero native pill colors. Bases Local Colors fixes that — ea
 ## How to use
 
 1. Open any `.base` file
-2. Go to **Settings → Bases Local Colors**
+2. Go to **Settings → Bases Tag Colors**
 3. Your active base is auto-selected — click **Import from active base**
 4. Tweak colors with the built-in picker
 

@@ -25,7 +25,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => BasesLocalColorsPlugin
+  default: () => BasesTagColorsPlugin
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian3 = require("obsidian");
@@ -45,9 +45,9 @@ function tagLeaf(leaf, basePath) {
     return null;
   const basesView = containerEl.querySelector(".bases-view");
   if (!basesView)
-    console.warn("[BasesLocalColors] .bases-view selector not found \u2014 Obsidian Bases DOM may have changed");
+    console.warn("[BasesTagColors] .bases-view selector not found \u2014 Obsidian Bases DOM may have changed");
   const rootEl = basesView != null ? basesView : containerEl;
-  rootEl.setAttribute("data-bases-local-colors-id", basePath);
+  rootEl.setAttribute("data-bases-tag-colors-id", basePath);
   return rootEl;
 }
 function untagLeaf(leaf) {
@@ -55,8 +55,8 @@ function untagLeaf(leaf) {
   const containerEl = view == null ? void 0 : view.containerEl;
   if (!containerEl)
     return;
-  containerEl.querySelectorAll("[data-bases-local-colors-id]").forEach((el) => el.removeAttribute("data-bases-local-colors-id"));
-  containerEl.removeAttribute("data-bases-local-colors-id");
+  containerEl.querySelectorAll("[data-bases-tag-colors-id]").forEach((el) => el.removeAttribute("data-bases-tag-colors-id"));
+  containerEl.removeAttribute("data-bases-tag-colors-id");
 }
 
 // src/types.ts
@@ -90,7 +90,7 @@ async function loadConfig(app, basePath) {
     }
     return parsed;
   } catch (e) {
-    console.warn(`[BasesLocalColors] Failed to load config at ${colorsPath}:`, e);
+    console.warn(`[BasesTagColors] Failed to load config at ${colorsPath}:`, e);
     return { ...DEFAULT_COLOR_CONFIG };
   }
 }
@@ -99,7 +99,7 @@ async function saveConfig(app, basePath, config) {
   try {
     await app.vault.adapter.write(colorsPath, JSON.stringify(config, null, 2));
   } catch (e) {
-    console.error(`[BasesLocalColors] Failed to save config at ${colorsPath}:`, e);
+    console.error(`[BasesTagColors] Failed to save config at ${colorsPath}:`, e);
   }
 }
 function sanitizeValue(text) {
@@ -152,7 +152,7 @@ function seedConfigFromView(viewRoot) {
 }
 
 // src/style-manager.ts
-var STYLE_ID = "bases-local-colors-style";
+var STYLE_ID = "bases-tag-colors-style";
 var StyleManager = class {
   constructor() {
     this.rulesByBase = /* @__PURE__ */ new Map();
@@ -180,12 +180,12 @@ var StyleManager = class {
           continue;
         if (col === "*") {
           rules.push(
-            `[data-bases-local-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
+            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
           );
         } else {
           const escapedCol = col.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
           rules.push(
-            `[data-bases-local-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
+            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
           );
         }
       }
@@ -239,12 +239,12 @@ async function cmdOpenColorConfig(app) {
   var _a;
   const leaf = app.workspace.activeLeaf;
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
-    new import_obsidian.Notice("Bases Local Colors: open a .base file first");
+    new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
   }
   const basePath = getBasePath(leaf);
   if (!basePath) {
-    new import_obsidian.Notice("Bases Local Colors: could not resolve base file path");
+    new import_obsidian.Notice("Bases Tag Colors: could not resolve base file path");
     return;
   }
   const colorsPath = colorsPathFromBasePath(basePath);
@@ -261,12 +261,12 @@ async function cmdSeedFromCurrentBase(app) {
   var _a, _b;
   const leaf = app.workspace.activeLeaf;
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
-    new import_obsidian.Notice("Bases Local Colors: open a .base file first");
+    new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
   }
   const basePath = getBasePath(leaf);
   if (!basePath) {
-    new import_obsidian.Notice("Bases Local Colors: could not resolve base file path");
+    new import_obsidian.Notice("Bases Tag Colors: could not resolve base file path");
     return;
   }
   const view = leaf.view;
@@ -281,39 +281,39 @@ async function cmdSeedFromCurrentBase(app) {
   );
   await saveConfig(app, basePath, seeded);
   const colorsPath = colorsPathFromBasePath(basePath);
-  new import_obsidian.Notice(`Bases Local Colors: wrote ${totalEntries} entries to ${colorsPath}`);
+  new import_obsidian.Notice(`Bases Tag Colors: wrote ${totalEntries} entries to ${colorsPath}`);
 }
 async function cmdReloadColorConfig(app, applyToBase) {
   var _a;
   const leaf = app.workspace.activeLeaf;
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
-    new import_obsidian.Notice("Bases Local Colors: open a .base file first");
+    new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
   }
   const basePath = getBasePath(leaf);
   if (!basePath) {
-    new import_obsidian.Notice("Bases Local Colors: could not resolve base file path");
+    new import_obsidian.Notice("Bases Tag Colors: could not resolve base file path");
     return;
   }
   await applyToBase(basePath);
-  new import_obsidian.Notice("Bases Local Colors: config reloaded");
+  new import_obsidian.Notice("Bases Tag Colors: config reloaded");
 }
 async function cmdMigrateFromOldPlugin(app, applyToBase) {
   var _a, _b, _c;
   const leaf = app.workspace.activeLeaf;
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
-    new import_obsidian.Notice("Bases Local Colors: open a .base file first");
+    new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
   }
   const basePath = getBasePath(leaf);
   if (!basePath) {
-    new import_obsidian.Notice("Bases Local Colors: could not resolve base file path");
+    new import_obsidian.Notice("Bases Tag Colors: could not resolve base file path");
     return;
   }
   const oldDataPath = ".obsidian/plugins/colored-bases-properties/data.json";
   const oldExists = await app.vault.adapter.exists(oldDataPath);
   if (!oldExists) {
-    new import_obsidian.Notice("Bases Local Colors: colored-bases-properties not found \u2014 nothing to migrate");
+    new import_obsidian.Notice("Bases Tag Colors: colored-bases-properties not found \u2014 nothing to migrate");
     return;
   }
   let oldPillColors = {};
@@ -322,7 +322,7 @@ async function cmdMigrateFromOldPlugin(app, applyToBase) {
     const parsed = JSON.parse(raw);
     oldPillColors = (_b = parsed.pillColors) != null ? _b : {};
   } catch (e) {
-    new import_obsidian.Notice("Bases Local Colors: failed to read old plugin data");
+    new import_obsidian.Notice("Bases Tag Colors: failed to read old plugin data");
     return;
   }
   const view = leaf.view;
@@ -353,12 +353,12 @@ async function cmdMigrateFromOldPlugin(app, applyToBase) {
   await saveConfig(app, basePath, existing);
   await applyToBase(basePath);
   const colorsPath = colorsPathFromBasePath(basePath);
-  new import_obsidian.Notice(`Bases Local Colors: migrated ${migrated} of ${total} values to ${colorsPath}`);
+  new import_obsidian.Notice(`Bases Tag Colors: migrated ${migrated} of ${total} values to ${colorsPath}`);
 }
 
 // src/settings-tab.ts
 var import_obsidian2 = require("obsidian");
-var BasesLocalColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
+var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.selectedBase = "";
@@ -379,7 +379,7 @@ var BasesLocalColorsSettingTab = class extends import_obsidian2.PluginSettingTab
     containerEl.empty();
     containerEl.addClass("blc-settings");
     const hero = containerEl.createDiv({ cls: "blc-hero" });
-    hero.createEl("p", { text: "BASES LOCAL COLORS", cls: "blc-hero-eyebrow" });
+    hero.createEl("p", { text: "BASES TAG COLORS", cls: "blc-hero-eyebrow" });
     hero.createEl("h1", { text: "Bring life to your tags.", cls: "blc-hero-title" });
     hero.createEl("p", { text: "v1.1 By Oleg Brovchenko", cls: "blc-hero-meta" });
     const headerEl = containerEl.createDiv({ cls: "blc-header" });
@@ -486,8 +486,8 @@ var BasesLocalColorsSettingTab = class extends import_obsidian2.PluginSettingTab
     dotsWrap.createDiv({ cls: "blc-dot blc-dot-yellow" });
     dotsWrap.createDiv({ cls: "blc-dot blc-dot-green" });
     windowChrome.createEl("span", { text: "YouTube Ideas.base", cls: "blc-window-title" });
-    const img = windowFrame.createEl("img", { cls: "blc-preview-img", attr: { alt: "Bases Local Colors in action" } });
-    const pluginDir = (_a = this.plugin.manifest.dir) != null ? _a : ".obsidian/plugins/bases-local-colors";
+    const img = windowFrame.createEl("img", { cls: "blc-preview-img", attr: { alt: "Bases Tag Colors in action" } });
+    const pluginDir = (_a = this.plugin.manifest.dir) != null ? _a : ".obsidian/plugins/bases-tag-colors";
     img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
     containerEl.createEl("p", { text: "Enjoy! \u2014 Oleg Brovchenko", cls: "blc-signoff" });
   }
@@ -647,7 +647,7 @@ var BasesLocalColorsSettingTab = class extends import_obsidian2.PluginSettingTab
 };
 
 // main.ts
-var BasesLocalColorsPlugin = class extends import_obsidian3.Plugin {
+var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   constructor() {
     super(...arguments);
     this.activeLeaves = /* @__PURE__ */ new Map();
@@ -713,14 +713,14 @@ var BasesLocalColorsPlugin = class extends import_obsidian3.Plugin {
       name: "Migrate from colored-bases-properties (current base)",
       callback: () => cmdMigrateFromOldPlugin(this.app, this.applyToBase.bind(this))
     });
-    this.addSettingTab(new BasesLocalColorsSettingTab(this.app, this));
+    this.addSettingTab(new BasesTagColorsSettingTab(this.app, this));
     this.app.workspace.onLayoutReady(() => this.syncLeaves());
   }
   // D3: load config, inject CSS, stamp pills, wire observer
   async activateLeaf(leaf) {
     const basePath = getBasePath(leaf);
     if (!basePath) {
-      console.warn("[BasesLocalColors] bases view active but path unavailable");
+      console.warn("[BasesTagColors] bases view active but path unavailable");
       return;
     }
     const existing = this.activeLeaves.get(leaf);

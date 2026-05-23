@@ -1,7 +1,7 @@
 import { ColorConfig } from './types';
 import { sanitizeValue } from './config-io';
 
-const STYLE_ID = 'bases-local-colors-style';
+const STYLE_ID = 'bases-tag-colors-style';
 
 export class StyleManager {
 	private styleEl: HTMLStyleElement;
@@ -36,12 +36,12 @@ export class StyleManager {
 
 				if (col === '*') {
 					rules.push(
-						`[data-bases-local-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
+						`[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
 					);
 				} else {
 					const escapedCol = col.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 					rules.push(
-						`[data-bases-local-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
+						`[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
 					);
 				}
 			}

@@ -9,7 +9,7 @@ import {
 	cmdReloadColorConfig,
 	cmdMigrateFromOldPlugin,
 } from './src/commands';
-import { BasesLocalColorsSettingTab } from './src/settings-tab';
+import { BasesTagColorsSettingTab } from './src/settings-tab';
 
 interface LeafState {
 	basePath: string;
@@ -17,7 +17,7 @@ interface LeafState {
 	observer: MutationObserver;
 }
 
-export default class BasesLocalColorsPlugin extends Plugin {
+export default class BasesTagColorsPlugin extends Plugin {
 	private styles!: StyleManager;
 	private activeLeaves: Map<WorkspaceLeaf, LeafState> = new Map();
 	private layoutDebounce: number | null = null;
@@ -90,7 +90,7 @@ export default class BasesLocalColorsPlugin extends Plugin {
 			callback: () => cmdMigrateFromOldPlugin(this.app, this.applyToBase.bind(this)),
 		});
 
-		this.addSettingTab(new BasesLocalColorsSettingTab(this.app, this));
+		this.addSettingTab(new BasesTagColorsSettingTab(this.app, this));
 
 		// Activate any bases leaves already open when the plugin is enabled.
 		// layout-change does not fire on plugin toggle, so we must bootstrap manually.
@@ -101,7 +101,7 @@ export default class BasesLocalColorsPlugin extends Plugin {
 	private async activateLeaf(leaf: WorkspaceLeaf): Promise<void> {
 		const basePath = getBasePath(leaf);
 		if (!basePath) {
-			console.warn('[BasesLocalColors] bases view active but path unavailable');
+			console.warn('[BasesTagColors] bases view active but path unavailable');
 			return;
 		}
 

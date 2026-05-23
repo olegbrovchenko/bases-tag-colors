@@ -24,9 +24,9 @@ export function tagLeaf(leaf: WorkspaceLeaf, basePath: string): HTMLElement | nu
 	if (!containerEl) return null;
 
 	const basesView = containerEl.querySelector('.bases-view') as HTMLElement | null;
-	if (!basesView) console.warn('[BasesLocalColors] .bases-view selector not found — Obsidian Bases DOM may have changed');
+	if (!basesView) console.warn('[BasesTagColors] .bases-view selector not found — Obsidian Bases DOM may have changed');
 	const rootEl = basesView ?? containerEl;
-	rootEl.setAttribute('data-bases-local-colors-id', basePath);
+	rootEl.setAttribute('data-bases-tag-colors-id', basePath);
 	return rootEl;
 }
 
@@ -36,9 +36,9 @@ export function untagLeaf(leaf: WorkspaceLeaf): void {
 	if (!containerEl) return;
 
 	containerEl
-		.querySelectorAll('[data-bases-local-colors-id]')
-		.forEach(el => el.removeAttribute('data-bases-local-colors-id'));
-	containerEl.removeAttribute('data-bases-local-colors-id');
+		.querySelectorAll('[data-bases-tag-colors-id]')
+		.forEach(el => el.removeAttribute('data-bases-tag-colors-id'));
+	containerEl.removeAttribute('data-bases-tag-colors-id');
 }
 
 export function tagAllBasesLeaves(app: App): void {
@@ -47,7 +47,7 @@ export function tagAllBasesLeaves(app: App): void {
 		if (basePath) {
 			tagLeaf(leaf, basePath);
 		} else {
-			console.warn('[BasesLocalColors] bases leaf found but path unavailable');
+			console.warn('[BasesTagColors] bases leaf found but path unavailable');
 		}
 	}
 }
