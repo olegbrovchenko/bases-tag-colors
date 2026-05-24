@@ -1,7 +1,7 @@
 {
   "id": "bases-tag-colors",
   "name": "Bases Tag Colors",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "minAppVersion": "1.8.0",
   "description": "Color your Bases tags per-base. Each .base file owns its palette — no global tag soup.",
   "author": "Oleg Brovchenko",

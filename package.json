@@ -1,6 +1,6 @@
 {
   "name": "bases-tag-colors",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Color your Bases tags per-base. Each .base file owns its palette — no global tag soup.",
   "main": "main.js",
   "scripts": {
@@ -12,7 +12,6 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^16.11.6",
-    "builtin-modules": "^3.3.0",
     "esbuild": "0.17.3",
     "obsidian": "latest",
     "tslib": "2.4.0",

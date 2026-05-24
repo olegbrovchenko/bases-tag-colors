@@ -81,12 +81,12 @@
 	justify-content: center;
 }
 
-.blc-feature-title {
+.blc-features-grid h3.blc-feature-title {
 	font-size: 12px;
 	font-weight: 700;
-	color: #f4b53f !important;
-	margin: 0 0 2px !important;
-	padding: 0 !important;
+	color: #f4b53f;
+	margin: 0 0 2px;
+	padding: 0;
 	line-height: 1.2;
 }
 
