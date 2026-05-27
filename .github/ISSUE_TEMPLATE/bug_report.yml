@@ -1,0 +1,67 @@
+name: Bug report
+description: Something's broken — colors not showing, plugin crash, weird behavior
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Short description of the bug. What did you expect, what did you get?
+      placeholder: "When I open my .base file, the colors don't apply to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a .base file
+        2. Go to Settings → Bases Tag Colors
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: obsidian-version
+    attributes:
+      label: Obsidian version
+      placeholder: "1.8.0"
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: "1.1.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - iOS
+        - Android
+    validations:
+      required: true
+
+  - type: textarea
+    id: colors-json
+    attributes:
+      label: Your .colors.json (optional)
+      description: Paste the contents of the .colors.json sibling file for the broken base. Helps reproduce.
+      render: json
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors (optional)
+      description: Open Obsidian → Ctrl/Cmd+Shift+I → Console tab → paste any red errors here.
+      render: shell
