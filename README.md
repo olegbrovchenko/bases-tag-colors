@@ -6,7 +6,7 @@
 
 ---
 
-Obsidian Bases has zero native pill colors. Bases Tag Colors fixes that - each `.base` file gets its own color palette stored in a sibling `.colors.json`. Colors follow the file. Nothing bleeds between bases.
+Obsidian Bases has zero native pill colors. Bases Tag Colors fixes that: colored tags and Notion-style pills for Bases views and note Properties, auto-colored out of the box, with each `.base` file owning its palette in a sibling `.colors.json`. Colors follow the file. Nothing bleeds between bases.
 
 ## Features
 
