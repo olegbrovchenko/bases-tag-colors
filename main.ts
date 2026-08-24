@@ -1,6 +1,6 @@
 import { Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
 import { getBasePath, tagLeaf, untagLeaf } from './src/base-view';
-import { basePathFromColorsPath, loadConfig } from './src/config-io';
+import { basePathFromColorsPath, loadConfig, sanitizeValue } from './src/config-io';
 import { StyleManager } from './src/style-manager';
 import { processBaseView } from './src/pill-processor';
 import {
@@ -18,11 +18,24 @@ interface LeafState {
 	observer: MutationObserver;
 }
 
+function mutationsAddPills(mutations: MutationRecord[]): boolean {
+	return mutations.some(m =>
+		m.type === 'childList' &&
+		Array.from(m.addedNodes).some(node => {
+			if (node.nodeType !== Node.ELEMENT_NODE) return false;
+			const el = node as HTMLElement;
+			return el.classList.contains('multi-select-pill') ||
+				el.querySelector?.('.multi-select-pill') !== null;
+		})
+	);
+}
+
 export default class BasesTagColorsPlugin extends Plugin {
 	private styles!: StyleManager;
 	private activeLeaves: Map<WorkspaceLeaf, LeafState> = new Map();
 	private layoutDebounce: number | null = null;
 	private colorsModifyDebounce: Map<string, number> = new Map();
+	private propsObserver: MutationObserver | null = null;
 	settings: PluginSettings = { ...DEFAULT_SETTINGS };
 
 	async onload() {
@@ -34,6 +47,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		}
 		stored.customShape = !!stored.customShape;
 		stored.autoColor = !!stored.autoColor;
+		stored.propertiesColor = !!stored.propertiesColor;
 		this.settings = stored;
 		this.styles.setShape(this.settings);
 
@@ -71,6 +85,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 					this.colorsModifyDebounce.delete(file.path);
 					const basePath = basePathFromColorsPath(file.path);
 					this.applyToBase(basePath);
+					this.reloadPropertyConfigs();
 				}, 100);
 
 				this.colorsModifyDebounce.set(file.path, timer);
@@ -105,22 +120,16 @@ export default class BasesTagColorsPlugin extends Plugin {
 
 		// Activate any bases leaves already open when the plugin is enabled.
 		// layout-change does not fire on plugin toggle, so we must bootstrap manually.
-		this.app.workspace.onLayoutReady(() => this.syncLeaves());
+		this.app.workspace.onLayoutReady(() => {
+			this.syncLeaves();
+			if (this.settings.propertiesColor) this.startPropertiesColoring();
+		});
 	}
 
 	// Watch a view root for virtualised rows adding pills, re-stamp when they appear
 	private createPillObserver(rootEl: HTMLElement, basePath: string): MutationObserver {
 		const observer = new MutationObserver((mutations) => {
-			const hasPills = mutations.some(m =>
-				m.type === 'childList' &&
-				Array.from(m.addedNodes).some(node => {
-					if (node.nodeType !== Node.ELEMENT_NODE) return false;
-					const el = node as HTMLElement;
-					return el.classList.contains('multi-select-pill') ||
-						el.querySelector?.('.multi-select-pill') !== null;
-				})
-			);
-			if (hasPills) this.refreshView(rootEl, basePath);
+			if (mutationsAddPills(mutations)) this.refreshView(rootEl, basePath);
 		});
 		observer.observe(rootEl, { childList: true, subtree: true });
 		return observer;
@@ -248,6 +257,66 @@ export default class BasesTagColorsPlugin extends Plugin {
 		}
 	}
 
+	// ── Note Properties coloring ─────────────────────────────────────────
+
+	applyPropertiesToggle(): void {
+		if (this.settings.propertiesColor) {
+			this.startPropertiesColoring();
+		} else {
+			this.stopPropertiesColoring();
+		}
+		this.styles.setShape(this.settings); // shape scope includes/excludes properties
+	}
+
+	private startPropertiesColoring(): void {
+		if (this.propsObserver) return;
+		this.propsObserver = new MutationObserver((mutations) => {
+			if (mutationsAddPills(mutations)) this.processPropertyPills();
+		});
+		this.propsObserver.observe(document.body, { childList: true, subtree: true });
+		this.processPropertyPills();
+		this.reloadPropertyConfigs();
+	}
+
+	private stopPropertiesColoring(): void {
+		if (!this.propsObserver) return;
+		this.propsObserver.disconnect();
+		this.propsObserver = null;
+		document.body
+			.querySelectorAll<HTMLElement>('.metadata-property .multi-select-pill[data-blc-value]')
+			.forEach(el => el.removeAttribute('data-blc-value'));
+		this.styles.clearPropertyRules();
+	}
+
+	// Stamp pills in every visible Properties panel. Column matching rides the
+	// panel's own data-property-key attribute, so only the value is stamped.
+	private processPropertyPills(): void {
+		const values: string[] = [];
+		document.body
+			.querySelectorAll<HTMLElement>('.metadata-property .multi-select-pill')
+			.forEach(pill => {
+				const contentEl = pill.querySelector('.multi-select-pill-content');
+				const rawText = (contentEl?.textContent ?? pill.textContent ?? '').trim();
+				if (!rawText) return;
+				const sanitized = sanitizeValue(rawText);
+				if (!sanitized) return;
+				pill.setAttribute('data-blc-value', sanitized);
+				values.push(sanitized);
+			});
+		if (this.settings.autoColor && values.length) {
+			this.styles.addPropertyAutoValues(values);
+		}
+	}
+
+	private async reloadPropertyConfigs(): Promise<void> {
+		if (!this.settings.propertiesColor) return;
+		const colorsFiles = this.app.vault.getFiles().filter(f => f.path.endsWith('.colors.json'));
+		const configs = await Promise.all(
+			colorsFiles.map(f => loadConfig(this.app, basePathFromColorsPath(f.path)))
+		);
+		this.styles.setPropertyRules(configs);
+	}
+
 	onunload() {
 		if (this.layoutDebounce !== null) {
 			window.clearTimeout(this.layoutDebounce);
@@ -257,6 +326,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		this.colorsModifyDebounce.clear();
 
 		for (const leaf of [...this.activeLeaves.keys()]) this.deactivateLeaf(leaf);
+		this.stopPropertiesColoring();
 		this.styles.destroy();
 	}
 }

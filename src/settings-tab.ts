@@ -81,6 +81,17 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 					this.plugin.applyAutoColorToggle();
 				}));
 
+		new Setting(containerEl)
+			.setName('Color pills in note properties')
+			.setDesc('The same values get the same colors (and shape) in the Properties panel at the top of notes, merged from all your bases.')
+			.addToggle(t => t
+				.setValue(this.plugin.settings.propertiesColor)
+				.onChange(async (v) => {
+					this.plugin.settings.propertiesColor = v;
+					await this.plugin.saveSettings();
+					this.plugin.applyPropertiesToggle();
+				}));
+
 		// Populate base selector
 		const bases = await listBasesInVault(this.app);
 

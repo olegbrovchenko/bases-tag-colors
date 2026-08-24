@@ -22,6 +22,7 @@ export interface PluginSettings {
 	paddingY: number;
 	borderRadius: number;
 	autoColor: boolean;
+	propertiesColor: boolean;
 }
 
 // Shape defaults mirror the original Notion-style design snippet the plugin
@@ -32,4 +33,5 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	paddingY: 2,
 	borderRadius: 4,
 	autoColor: true,
+	propertiesColor: true,
 };

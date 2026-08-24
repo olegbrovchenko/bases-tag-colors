@@ -69,7 +69,8 @@ var DEFAULT_SETTINGS = {
   paddingX: 6,
   paddingY: 2,
   borderRadius: 4,
-  autoColor: true
+  autoColor: true,
+  propertiesColor: true
 };
 
 // src/config-io.ts
@@ -189,6 +190,9 @@ var StyleManager = class {
     // basePath → (sanitized value → generated color); rebuilt into rules BEFORE
     // the configured rules so a configured color always wins at equal specificity
     this.autoColorsByBase = /* @__PURE__ */ new Map();
+    // Note Properties panel: configured rules (merged across all bases) + auto colors
+    this.propertyRules = [];
+    this.propertyAutoColors = /* @__PURE__ */ new Map();
     this.shapeRule = "";
     this.styleEl = this.getOrCreate();
   }
@@ -241,8 +245,10 @@ var StyleManager = class {
       const px = Math.round(shape.paddingX);
       const py = Math.round(shape.paddingY);
       const br = Math.round(shape.borderRadius);
-      this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: 0px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; gap: 3px !important; align-items: center !important; }
-[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { line-height: 1 !important; }`;
+      const pillScopes = shape.propertiesColor ? "[data-bases-tag-colors-id] .multi-select-pill, .metadata-property .multi-select-pill" : "[data-bases-tag-colors-id] .multi-select-pill";
+      const contentScopes = shape.propertiesColor ? "[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content, .metadata-property .multi-select-pill .multi-select-pill-content" : "[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content";
+      this.shapeRule = `${pillScopes} { --pill-padding-x: 0px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; gap: 3px !important; align-items: center !important; }
+${contentScopes} { line-height: 1 !important; }`;
     }
     this.rebuild();
   }
@@ -271,6 +277,50 @@ var StyleManager = class {
   }
   clearAllAutoColors() {
     this.autoColorsByBase.clear();
+    this.propertyAutoColors.clear();
+    this.rebuild();
+  }
+  // Colors for the note Properties panel, merged from every base's config.
+  // Column-specific entries match the property key; '*' entries match any.
+  // Later bases overwrite earlier on collisions (dedupe by col+value).
+  setPropertyRules(configs) {
+    const merged = /* @__PURE__ */ new Map();
+    for (const config of configs) {
+      if (typeof config.columns !== "object" || config.columns === null)
+        continue;
+      for (const [col, colorMap] of Object.entries(config.columns)) {
+        if (typeof colorMap !== "object" || colorMap === null)
+          continue;
+        for (const [rawValue, color] of Object.entries(colorMap)) {
+          if (typeof color !== "string" || !/^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|rgba?\(\s*[\d.,%\s/]+\))$/.test(color))
+            continue;
+          const sanitized = sanitizeValue(rawValue);
+          if (!sanitized)
+            continue;
+          const selector = col === "*" ? `.metadata-property .multi-select-pill[data-blc-value="${sanitized}"]` : `.metadata-property[data-property-key="${escapeAttr(col)}"] .multi-select-pill[data-blc-value="${sanitized}"]`;
+          merged.set(`${col}\0${sanitized}`, { selector, color });
+        }
+      }
+    }
+    this.propertyRules = [...merged.values()].map(
+      ({ selector, color }) => `${selector} { background-color: ${color} !important; color: ${textColorFor(color)}; }`
+    );
+    this.rebuild();
+  }
+  addPropertyAutoValues(sanitizedValues) {
+    let changed = false;
+    for (const v of sanitizedValues) {
+      if (!this.propertyAutoColors.has(v)) {
+        this.propertyAutoColors.set(v, generateColorFromText(v));
+        changed = true;
+      }
+    }
+    if (changed)
+      this.rebuild();
+  }
+  clearPropertyRules() {
+    this.propertyRules = [];
+    this.propertyAutoColors.clear();
     this.rebuild();
   }
   clearAll() {
@@ -281,6 +331,12 @@ var StyleManager = class {
     const all = [];
     if (this.shapeRule)
       all.push(this.shapeRule);
+    for (const [value, color] of this.propertyAutoColors.entries()) {
+      all.push(
+        `.metadata-property .multi-select-pill[data-blc-value="${value}"] { background-color: ${color} !important; color: ${textColorFor(color)}; }`
+      );
+    }
+    all.push(...this.propertyRules);
     for (const [basePath, colors] of this.autoColorsByBase.entries()) {
       const escapedPath = escapeAttr(basePath);
       for (const [value, color] of colors.entries()) {
@@ -512,6 +568,11 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       this.plugin.settings.autoColor = v;
       await this.plugin.saveSettings();
       this.plugin.applyAutoColorToggle();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Color pills in note properties").setDesc("The same values get the same colors (and shape) in the Properties panel at the top of notes, merged from all your bases.").addToggle((t) => t.setValue(this.plugin.settings.propertiesColor).onChange(async (v) => {
+      this.plugin.settings.propertiesColor = v;
+      await this.plugin.saveSettings();
+      this.plugin.applyPropertiesToggle();
     }));
     const bases = await listBasesInVault(this.app);
     if (bases.length === 0) {
@@ -817,12 +878,24 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
 };
 
 // main.ts
+function mutationsAddPills(mutations) {
+  return mutations.some(
+    (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
+      var _a;
+      if (node.nodeType !== Node.ELEMENT_NODE)
+        return false;
+      const el = node;
+      return el.classList.contains("multi-select-pill") || ((_a = el.querySelector) == null ? void 0 : _a.call(el, ".multi-select-pill")) !== null;
+    })
+  );
+}
 var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   constructor() {
     super(...arguments);
     this.activeLeaves = /* @__PURE__ */ new Map();
     this.layoutDebounce = null;
     this.colorsModifyDebounce = /* @__PURE__ */ new Map();
+    this.propsObserver = null;
     this.settings = { ...DEFAULT_SETTINGS };
   }
   async onload() {
@@ -834,6 +907,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     }
     stored.customShape = !!stored.customShape;
     stored.autoColor = !!stored.autoColor;
+    stored.propertiesColor = !!stored.propertiesColor;
     this.settings = stored;
     this.styles.setShape(this.settings);
     this.registerEvent(
@@ -869,6 +943,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
           this.colorsModifyDebounce.delete(file.path);
           const basePath = basePathFromColorsPath(file.path);
           this.applyToBase(basePath);
+          this.reloadPropertyConfigs();
         }, 100);
         this.colorsModifyDebounce.set(file.path, timer);
       })
@@ -894,21 +969,16 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       callback: () => cmdMigrateFromOldPlugin(this.app, this.applyToBase.bind(this))
     });
     this.addSettingTab(new BasesTagColorsSettingTab(this.app, this));
-    this.app.workspace.onLayoutReady(() => this.syncLeaves());
+    this.app.workspace.onLayoutReady(() => {
+      this.syncLeaves();
+      if (this.settings.propertiesColor)
+        this.startPropertiesColoring();
+    });
   }
   // Watch a view root for virtualised rows adding pills, re-stamp when they appear
   createPillObserver(rootEl, basePath) {
     const observer = new MutationObserver((mutations) => {
-      const hasPills = mutations.some(
-        (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
-          var _a;
-          if (node.nodeType !== Node.ELEMENT_NODE)
-            return false;
-          const el = node;
-          return el.classList.contains("multi-select-pill") || ((_a = el.querySelector) == null ? void 0 : _a.call(el, ".multi-select-pill")) !== null;
-        })
-      );
-      if (hasPills)
+      if (mutationsAddPills(mutations))
         this.refreshView(rootEl, basePath);
     });
     observer.observe(rootEl, { childList: true, subtree: true });
@@ -1012,6 +1082,63 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       this.styles.addAutoValuesForBase(basePath, values);
     }
   }
+  // ── Note Properties coloring ─────────────────────────────────────────
+  applyPropertiesToggle() {
+    if (this.settings.propertiesColor) {
+      this.startPropertiesColoring();
+    } else {
+      this.stopPropertiesColoring();
+    }
+    this.styles.setShape(this.settings);
+  }
+  startPropertiesColoring() {
+    if (this.propsObserver)
+      return;
+    this.propsObserver = new MutationObserver((mutations) => {
+      if (mutationsAddPills(mutations))
+        this.processPropertyPills();
+    });
+    this.propsObserver.observe(document.body, { childList: true, subtree: true });
+    this.processPropertyPills();
+    this.reloadPropertyConfigs();
+  }
+  stopPropertiesColoring() {
+    if (!this.propsObserver)
+      return;
+    this.propsObserver.disconnect();
+    this.propsObserver = null;
+    document.body.querySelectorAll(".metadata-property .multi-select-pill[data-blc-value]").forEach((el) => el.removeAttribute("data-blc-value"));
+    this.styles.clearPropertyRules();
+  }
+  // Stamp pills in every visible Properties panel. Column matching rides the
+  // panel's own data-property-key attribute, so only the value is stamped.
+  processPropertyPills() {
+    const values = [];
+    document.body.querySelectorAll(".metadata-property .multi-select-pill").forEach((pill) => {
+      var _a, _b;
+      const contentEl = pill.querySelector(".multi-select-pill-content");
+      const rawText = ((_b = (_a = contentEl == null ? void 0 : contentEl.textContent) != null ? _a : pill.textContent) != null ? _b : "").trim();
+      if (!rawText)
+        return;
+      const sanitized = sanitizeValue(rawText);
+      if (!sanitized)
+        return;
+      pill.setAttribute("data-blc-value", sanitized);
+      values.push(sanitized);
+    });
+    if (this.settings.autoColor && values.length) {
+      this.styles.addPropertyAutoValues(values);
+    }
+  }
+  async reloadPropertyConfigs() {
+    if (!this.settings.propertiesColor)
+      return;
+    const colorsFiles = this.app.vault.getFiles().filter((f) => f.path.endsWith(".colors.json"));
+    const configs = await Promise.all(
+      colorsFiles.map((f) => loadConfig(this.app, basePathFromColorsPath(f.path)))
+    );
+    this.styles.setPropertyRules(configs);
+  }
   onunload() {
     if (this.layoutDebounce !== null) {
       window.clearTimeout(this.layoutDebounce);
@@ -1022,6 +1149,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.colorsModifyDebounce.clear();
     for (const leaf of [...this.activeLeaves.keys()])
       this.deactivateLeaf(leaf);
+    this.stopPropertiesColoring();
     this.styles.destroy();
   }
 };
