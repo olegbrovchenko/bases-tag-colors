@@ -223,6 +223,11 @@
 	flex-shrink: 0;
 }
 
+.blc-refresh-btn {
+	flex-shrink: 0;
+	cursor: pointer;
+}
+
 .blc-import-btn:disabled {
 	opacity: 0.45;
 	cursor: not-allowed;

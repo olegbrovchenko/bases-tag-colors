@@ -556,6 +556,8 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     selectorWrapper.createEl("label", { text: "Base:", cls: "blc-label" });
     const select = selectorWrapper.createEl("select", { cls: "blc-base-select" });
     const importBtn = headerEl.createEl("button", { text: "Import from active base", cls: "blc-import-btn mod-cta" });
+    const refreshBtn = headerEl.createEl("button", { text: "Refresh", cls: "blc-refresh-btn" });
+    refreshBtn.title = "Re-read the colors file and repaint \u2014 changes nothing on disk";
     const searchInput = containerEl.createEl("input", {
       type: "text",
       placeholder: "Search values\u2026",
@@ -640,6 +642,14 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       }
       await this.saveAndApply();
       this.renderValueList(listEl);
+    });
+    refreshBtn.addEventListener("click", async () => {
+      if (!this.selectedBase)
+        return;
+      this.config = await loadConfig(this.app, this.selectedBase);
+      this.renderValueList(listEl);
+      await this.plugin.applyToBase(this.selectedBase);
+      new import_obsidian2.Notice("Bases Tag Colors: refreshed");
     });
     this.updateImportBtnState(importBtn);
     containerEl.createEl("hr", { cls: "blc-landing-divider" });

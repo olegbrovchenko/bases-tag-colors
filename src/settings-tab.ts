@@ -47,6 +47,8 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		selectorWrapper.createEl('label', { text: 'Base:', cls: 'blc-label' });
 		const select = selectorWrapper.createEl('select', { cls: 'blc-base-select' });
 		const importBtn = headerEl.createEl('button', { text: 'Import from active base', cls: 'blc-import-btn mod-cta' });
+		const refreshBtn = headerEl.createEl('button', { text: 'Refresh', cls: 'blc-refresh-btn' });
+		refreshBtn.title = 'Re-read the colors file and repaint — changes nothing on disk';
 
 		// Search
 		const searchInput = containerEl.createEl('input', {
@@ -159,6 +161,14 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 
 			await this.saveAndApply();
 			this.renderValueList(listEl);
+		});
+
+		refreshBtn.addEventListener('click', async () => {
+			if (!this.selectedBase) return;
+			this.config = await loadConfig(this.app, this.selectedBase);
+			this.renderValueList(listEl);
+			await this.plugin.applyToBase(this.selectedBase);
+			new Notice('Bases Tag Colors: refreshed');
 		});
 
 		this.updateImportBtnState(importBtn);
