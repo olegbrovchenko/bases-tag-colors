@@ -63,11 +63,16 @@ export class StyleManager {
 			const px = Math.round(shape.paddingX);
 			const py = Math.round(shape.paddingY);
 			const br = Math.round(shape.borderRadius);
+			// --pill-padding-x is zeroed on purpose: core feeds it into the
+			// content's margin-inline-start AND the remove button's
+			// margin-inline-end, so leaving it set doubles the horizontal cost
+			// on top of our own padding. With it at 0 our padding is the single
+			// source of pill width; gap owns the text-to-X distance.
 			this.shapeRule =
 				`[data-bases-tag-colors-id] .multi-select-pill { ` +
-				`--pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; ` +
+				`--pill-padding-x: 0px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; ` +
 				`padding: ${py}px ${px}px !important; border-radius: ${br}px !important; ` +
-				`align-items: center !important; }\n` +
+				`gap: 3px !important; align-items: center !important; }\n` +
 				// No optical trim: centering the caps-only band shoves descender
 				// glyphs (open, manager) into the bottom edge. Stock font-box
 				// centering is the correct compromise for mixed-case tag values.

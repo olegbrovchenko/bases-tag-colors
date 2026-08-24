@@ -27,7 +27,7 @@ export interface PillShapeSettings {
 // built alongside: text never touches the corners, mid-hard 4px radius.
 export const DEFAULT_PILL_SHAPE: PillShapeSettings = {
 	customShape: true,
-	paddingX: 8,
+	paddingX: 6,
 	paddingY: 2,
 	borderRadius: 4,
 };

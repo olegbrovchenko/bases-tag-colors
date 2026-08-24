@@ -66,7 +66,7 @@ var DEFAULT_COLOR_CONFIG = {
 };
 var DEFAULT_PILL_SHAPE = {
   customShape: true,
-  paddingX: 8,
+  paddingX: 6,
   paddingY: 2,
   borderRadius: 4
 };
@@ -211,7 +211,7 @@ var StyleManager = class {
       const px = Math.round(shape.paddingX);
       const py = Math.round(shape.paddingY);
       const br = Math.round(shape.borderRadius);
-      this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; align-items: center !important; }
+      this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: 0px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; gap: 3px !important; align-items: center !important; }
 [data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { line-height: 1 !important; }`;
     }
     this.rebuild();
