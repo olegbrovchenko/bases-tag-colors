@@ -1,6 +1,6 @@
 {
   "name": "bases-tag-colors",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Color your Bases tags per-base. Each .base file owns its palette — no global tag soup.",
   "main": "main.js",
   "scripts": {
