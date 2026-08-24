@@ -159,6 +159,26 @@ function seedConfigFromView(viewRoot) {
 
 // src/style-manager.ts
 var STYLE_ID = "bases-tag-colors-style";
+function textColorFor(color) {
+  let r, g, b;
+  const hex = color.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  const rgb = color.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3)
+      h = h.split("").map((c) => c + c).join("");
+    r = parseInt(h.slice(0, 2), 16);
+    g = parseInt(h.slice(2, 4), 16);
+    b = parseInt(h.slice(4, 6), 16);
+  } else if (rgb) {
+    r = Number(rgb[1]);
+    g = Number(rgb[2]);
+    b = Number(rgb[3]);
+  } else {
+    return "white";
+  }
+  return (r * 299 + g * 587 + b * 114) / 1e3 >= 150 ? "#1e1e1e" : "white";
+}
 var StyleManager = class {
   constructor() {
     this.rulesByBase = /* @__PURE__ */ new Map();
@@ -179,20 +199,23 @@ var StyleManager = class {
     const rules = [];
     const escapedPath = basePath.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     for (const [col, colorMap] of Object.entries(config.columns)) {
+      if (typeof colorMap !== "object" || colorMap === null)
+        continue;
       for (const [rawValue, color] of Object.entries(colorMap)) {
-        if (!color || !/^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$|^rgba?\(/.test(color))
+        if (typeof color !== "string" || !/^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|rgba?\(\s*[\d.,%\s/]+\))$/.test(color))
           continue;
         const sanitized = sanitizeValue(rawValue);
         if (!sanitized)
           continue;
+        const fg = textColorFor(color);
         if (col === "*") {
           rules.push(
-            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
+            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
           );
         } else {
           const escapedCol = col.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
           rules.push(
-            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: white; }`
+            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
           );
         }
       }
@@ -261,7 +284,7 @@ function processBaseView(viewRoot) {
 // src/commands.ts
 var import_obsidian = require("obsidian");
 async function cmdOpenColorConfig(app) {
-  var _a;
+  var _a, _b;
   const leaf = app.workspace.activeLeaf;
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
     new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
@@ -280,7 +303,12 @@ async function cmdOpenColorConfig(app) {
       JSON.stringify(DEFAULT_COLOR_CONFIG, null, 2)
     );
   }
-  await app.workspace.openLinkText(colorsPath, "", false);
+  try {
+    await app.workspace.openLinkText(colorsPath, "", false);
+  } catch (e) {
+    const appWithDefault = app;
+    await ((_b = appWithDefault.openWithDefaultApp) == null ? void 0 : _b.call(appWithDefault, colorsPath));
+  }
 }
 async function cmdSeedFromCurrentBase(app) {
   var _a, _b;
@@ -300,13 +328,21 @@ async function cmdSeedFromCurrentBase(app) {
     return;
   const rootEl = (_b = containerEl.querySelector(".bases-view")) != null ? _b : containerEl;
   const seeded = seedConfigFromView(rootEl);
-  const totalEntries = Object.values(seeded.columns).reduce(
-    (sum, vals) => sum + Object.keys(vals).length,
-    0
-  );
-  await saveConfig(app, basePath, seeded);
+  const existing = await loadConfig(app, basePath);
+  let added = 0;
+  for (const [col, vals] of Object.entries(seeded.columns)) {
+    if (!existing.columns[col])
+      existing.columns[col] = {};
+    for (const [rawVal, color] of Object.entries(vals)) {
+      if (!existing.columns[col][rawVal]) {
+        existing.columns[col][rawVal] = color;
+        added++;
+      }
+    }
+  }
+  await saveConfig(app, basePath, existing);
   const colorsPath = colorsPathFromBasePath(basePath);
-  new import_obsidian.Notice(`Bases Tag Colors: wrote ${totalEntries} entries to ${colorsPath}`);
+  new import_obsidian.Notice(`Bases Tag Colors: added ${added} new entries to ${colorsPath} (existing colors kept)`);
 }
 async function cmdReloadColorConfig(app, applyToBase) {
   var _a;
@@ -848,6 +884,9 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (!rootEl)
       return;
     const config = await loadConfig(this.app, basePath);
+    const raced = this.activeLeaves.get(leaf);
+    if (raced && raced.basePath === basePath)
+      return;
     this.styles.setRulesForBase(basePath, config);
     processBaseView(rootEl);
     const observer = this.createPillObserver(rootEl);

@@ -147,6 +147,12 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (!rootEl) return;
 
 		const config = await loadConfig(this.app, basePath);
+
+		// A concurrent activation (active-leaf-change + debounced layout-change)
+		// may have finished while we awaited — a second observer here would leak.
+		const raced = this.activeLeaves.get(leaf);
+		if (raced && raced.basePath === basePath) return;
+
 		this.styles.setRulesForBase(basePath, config);
 		processBaseView(rootEl);
 

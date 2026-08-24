@@ -23,7 +23,13 @@ export async function cmdOpenColorConfig(app: App): Promise<void> {
 			JSON.stringify(DEFAULT_COLOR_CONFIG, null, 2)
 		);
 	}
-	await app.workspace.openLinkText(colorsPath, '', false);
+	try {
+		await app.workspace.openLinkText(colorsPath, '', false);
+	} catch {
+		// Vaults without a JSON-capable view can't open it in-app — hand to the OS
+		const appWithDefault = app as App & { openWithDefaultApp?: (path: string) => Promise<void> };
+		await appWithDefault.openWithDefaultApp?.(colorsPath);
+	}
 }
 
 // Seeds *.colors.json with placeholder colors for all currently visible pills.
@@ -45,15 +51,23 @@ export async function cmdSeedFromCurrentBase(app: App): Promise<void> {
 	const rootEl =
 		(containerEl.querySelector('.bases-view') as HTMLElement | null) ?? containerEl;
 
+	// Merge into the existing config — a seed must never wipe hand-tuned colors
 	const seeded = seedConfigFromView(rootEl);
-	const totalEntries = Object.values(seeded.columns).reduce(
-		(sum, vals) => sum + Object.keys(vals).length,
-		0
-	);
+	const existing = await loadConfig(app, basePath);
+	let added = 0;
+	for (const [col, vals] of Object.entries(seeded.columns)) {
+		if (!existing.columns[col]) existing.columns[col] = {};
+		for (const [rawVal, color] of Object.entries(vals)) {
+			if (!existing.columns[col][rawVal]) {
+				existing.columns[col][rawVal] = color;
+				added++;
+			}
+		}
+	}
 
-	await saveConfig(app, basePath, seeded);
+	await saveConfig(app, basePath, existing);
 	const colorsPath = colorsPathFromBasePath(basePath);
-	new Notice(`Bases Tag Colors: wrote ${totalEntries} entries to ${colorsPath}`);
+	new Notice(`Bases Tag Colors: added ${added} new entries to ${colorsPath} (existing colors kept)`);
 }
 
 // Reloads the *.colors.json and re-applies colors for the active base.
