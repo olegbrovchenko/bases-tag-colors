@@ -228,6 +228,8 @@ var StyleManager = class {
   }
   rebuild() {
     const all = [];
+    if (this.shapeRule)
+      all.push(this.shapeRule);
     for (const rules of this.rulesByBase.values())
       all.push(...rules);
     this.styleEl.textContent = all.join("\n");

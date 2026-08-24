@@ -96,6 +96,7 @@ export class StyleManager {
 
 	private rebuild(): void {
 		const all: string[] = [];
+		if (this.shapeRule) all.push(this.shapeRule);
 		for (const rules of this.rulesByBase.values()) all.push(...rules);
 		this.styleEl.textContent = all.join('\n');
 	}
