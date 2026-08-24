@@ -1,6 +1,6 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type BasesTagColorsPlugin from '../main';
-import { listBasesInVault, loadConfig, saveConfig, sanitizeValue, seedConfigFromView, parseBaseColumns } from './config-io';
+import { listBasesInVault, loadConfig, saveConfig, seedConfigFromView, parseBaseColumns } from './config-io';
 import { ColorConfig } from './types';
 import { getBasePath } from './base-view';
 
@@ -10,6 +10,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 	private config: ColorConfig = { version: 1, columns: {} };
 	private searchQuery: string = '';
 	private debounceTimer: number | null = null;
+	private shapeSaveTimer: number | null = null;
 
 	constructor(app: App, plugin: BasesTagColorsPlugin) {
 		super(app, plugin);
@@ -20,6 +21,12 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		if (this.debounceTimer !== null) {
 			window.clearTimeout(this.debounceTimer);
 			this.debounceTimer = null;
+		}
+		if (this.shapeSaveTimer !== null) {
+			window.clearTimeout(this.shapeSaveTimer);
+			this.shapeSaveTimer = null;
+			// Flush the pending write so a slider tweak right before closing isn't lost
+			this.plugin.saveShape();
 		}
 	}
 
@@ -175,53 +182,9 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 
 	// Global pill shape controls: toggle + sliders, applied live to all bases views
 	// and mirrored on the pill previews in the color list above.
+	// Sliders fire per drag tick — styles apply immediately, disk write is debounced.
 	private buildShapeSection(containerEl: HTMLElement, listEl: HTMLElement): void {
 		const shape = this.plugin.shape;
-		const slidersEl = containerEl.createDiv();
-
-		const renderSliders = () => {
-			slidersEl.empty();
-			if (!shape.customShape) return;
-
-			new Setting(slidersEl)
-				.setName('Horizontal padding')
-				.setDesc('Space left and right of the tag text.')
-				.addSlider(s => s
-					.setLimits(2, 18, 1)
-					.setValue(shape.paddingX)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						shape.paddingX = v;
-						await this.plugin.saveShape();
-						this.applyPreviewShape(listEl);
-					}));
-
-			new Setting(slidersEl)
-				.setName('Vertical padding')
-				.setDesc('Space above and below the tag text.')
-				.addSlider(s => s
-					.setLimits(0, 10, 1)
-					.setValue(shape.paddingY)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						shape.paddingY = v;
-						await this.plugin.saveShape();
-						this.applyPreviewShape(listEl);
-					}));
-
-			new Setting(slidersEl)
-				.setName('Corner radius')
-				.setDesc('0 = square, higher = rounder.')
-				.addSlider(s => s
-					.setLimits(0, 24, 1)
-					.setValue(shape.borderRadius)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						shape.borderRadius = v;
-						await this.plugin.saveShape();
-						this.applyPreviewShape(listEl);
-					}));
-		};
 
 		new Setting(containerEl)
 			.setName('Customize pill shape')
@@ -235,9 +198,45 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 					this.applyPreviewShape(listEl);
 				}));
 
-		containerEl.appendChild(slidersEl);
+		const slidersEl = containerEl.createDiv();
+
+		const sliderDefs: Array<{ name: string; desc: string; min: number; max: number; key: 'paddingX' | 'paddingY' | 'borderRadius' }> = [
+			{ name: 'Horizontal padding', desc: 'Space left and right of the tag text.', min: 2, max: 18, key: 'paddingX' },
+			{ name: 'Vertical padding', desc: 'Space above and below the tag text.', min: 0, max: 10, key: 'paddingY' },
+			{ name: 'Corner radius', desc: '0 = square, higher = rounder.', min: 0, max: 24, key: 'borderRadius' },
+		];
+
+		const renderSliders = () => {
+			slidersEl.empty();
+			if (!shape.customShape) return;
+
+			for (const def of sliderDefs) {
+				new Setting(slidersEl)
+					.setName(def.name)
+					.setDesc(def.desc)
+					.addSlider(s => s
+						.setLimits(def.min, def.max, 1)
+						.setValue(shape[def.key])
+						.setDynamicTooltip()
+						.onChange((v) => {
+							shape[def.key] = v;
+							this.plugin.applyShape();
+							this.applyPreviewShape(listEl);
+							this.debouncedSaveShape();
+						}));
+			}
+		};
+
 		renderSliders();
 		this.applyPreviewShape(listEl);
+	}
+
+	private debouncedSaveShape(): void {
+		if (this.shapeSaveTimer !== null) window.clearTimeout(this.shapeSaveTimer);
+		this.shapeSaveTimer = window.setTimeout(() => {
+			this.shapeSaveTimer = null;
+			this.plugin.saveShape();
+		}, 150);
 	}
 
 	private applyPreviewShape(listEl: HTMLElement): void {

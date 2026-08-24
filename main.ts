@@ -27,7 +27,13 @@ export default class BasesTagColorsPlugin extends Plugin {
 
 	async onload() {
 		this.styles = new StyleManager();
-		this.shape = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+		const stored = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+		// Guard against a hand-edited/corrupted data.json feeding NaN into sliders + CSS
+		for (const key of ['paddingX', 'paddingY', 'borderRadius'] as const) {
+			if (!Number.isFinite(stored[key])) stored[key] = DEFAULT_PILL_SHAPE[key];
+		}
+		stored.customShape = !!stored.customShape;
+		this.shape = stored;
 		this.styles.setShape(this.shape);
 
 		// B1/B2 + D3/D4: activate leaf when it becomes active
@@ -210,6 +216,11 @@ export default class BasesTagColorsPlugin extends Plugin {
 			}
 			processBaseView(state.rootEl);
 		}
+	}
+
+	// Apply the current shape to open views without touching disk (live slider feedback)
+	applyShape(): void {
+		this.styles.setShape(this.shape);
 	}
 
 	async saveShape(): Promise<void> {

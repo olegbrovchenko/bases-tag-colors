@@ -390,12 +390,18 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     this.config = { version: 1, columns: {} };
     this.searchQuery = "";
     this.debounceTimer = null;
+    this.shapeSaveTimer = null;
     this.plugin = plugin;
   }
   hide() {
     if (this.debounceTimer !== null) {
       window.clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
+    }
+    if (this.shapeSaveTimer !== null) {
+      window.clearTimeout(this.shapeSaveTimer);
+      this.shapeSaveTimer = null;
+      this.plugin.saveShape();
     }
   }
   async display() {
@@ -520,38 +526,44 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
   }
   // Global pill shape controls: toggle + sliders, applied live to all bases views
   // and mirrored on the pill previews in the color list above.
+  // Sliders fire per drag tick — styles apply immediately, disk write is debounced.
   buildShapeSection(containerEl, listEl) {
     const shape = this.plugin.shape;
-    const slidersEl = containerEl.createDiv();
-    const renderSliders = () => {
-      slidersEl.empty();
-      if (!shape.customShape)
-        return;
-      new import_obsidian2.Setting(slidersEl).setName("Horizontal padding").setDesc("Space left and right of the tag text.").addSlider((s) => s.setLimits(2, 18, 1).setValue(shape.paddingX).setDynamicTooltip().onChange(async (v) => {
-        shape.paddingX = v;
-        await this.plugin.saveShape();
-        this.applyPreviewShape(listEl);
-      }));
-      new import_obsidian2.Setting(slidersEl).setName("Vertical padding").setDesc("Space above and below the tag text.").addSlider((s) => s.setLimits(0, 10, 1).setValue(shape.paddingY).setDynamicTooltip().onChange(async (v) => {
-        shape.paddingY = v;
-        await this.plugin.saveShape();
-        this.applyPreviewShape(listEl);
-      }));
-      new import_obsidian2.Setting(slidersEl).setName("Corner radius").setDesc("0 = square, higher = rounder.").addSlider((s) => s.setLimits(0, 24, 1).setValue(shape.borderRadius).setDynamicTooltip().onChange(async (v) => {
-        shape.borderRadius = v;
-        await this.plugin.saveShape();
-        this.applyPreviewShape(listEl);
-      }));
-    };
     new import_obsidian2.Setting(containerEl).setName("Customize pill shape").setDesc("Notion-style pill shape for Bases views: comfortable padding, mid-hard corners. Turn off to use your theme's default shape.").addToggle((t) => t.setValue(shape.customShape).onChange(async (v) => {
       shape.customShape = v;
       await this.plugin.saveShape();
       renderSliders();
       this.applyPreviewShape(listEl);
     }));
-    containerEl.appendChild(slidersEl);
+    const slidersEl = containerEl.createDiv();
+    const sliderDefs = [
+      { name: "Horizontal padding", desc: "Space left and right of the tag text.", min: 2, max: 18, key: "paddingX" },
+      { name: "Vertical padding", desc: "Space above and below the tag text.", min: 0, max: 10, key: "paddingY" },
+      { name: "Corner radius", desc: "0 = square, higher = rounder.", min: 0, max: 24, key: "borderRadius" }
+    ];
+    const renderSliders = () => {
+      slidersEl.empty();
+      if (!shape.customShape)
+        return;
+      for (const def of sliderDefs) {
+        new import_obsidian2.Setting(slidersEl).setName(def.name).setDesc(def.desc).addSlider((s) => s.setLimits(def.min, def.max, 1).setValue(shape[def.key]).setDynamicTooltip().onChange((v) => {
+          shape[def.key] = v;
+          this.plugin.applyShape();
+          this.applyPreviewShape(listEl);
+          this.debouncedSaveShape();
+        }));
+      }
+    };
     renderSliders();
     this.applyPreviewShape(listEl);
+  }
+  debouncedSaveShape() {
+    if (this.shapeSaveTimer !== null)
+      window.clearTimeout(this.shapeSaveTimer);
+    this.shapeSaveTimer = window.setTimeout(() => {
+      this.shapeSaveTimer = null;
+      this.plugin.saveShape();
+    }, 150);
   }
   applyPreviewShape(listEl) {
     const shape = this.plugin.shape;
@@ -732,7 +744,13 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   }
   async onload() {
     this.styles = new StyleManager();
-    this.shape = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+    const stored = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+    for (const key of ["paddingX", "paddingY", "borderRadius"]) {
+      if (!Number.isFinite(stored[key]))
+        stored[key] = DEFAULT_PILL_SHAPE[key];
+    }
+    stored.customShape = !!stored.customShape;
+    this.shape = stored;
     this.styles.setShape(this.shape);
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
@@ -889,6 +907,10 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       }
       processBaseView(state.rootEl);
     }
+  }
+  // Apply the current shape to open views without touching disk (live slider feedback)
+  applyShape() {
+    this.styles.setShape(this.shape);
   }
   async saveShape() {
     await this.saveData(this.shape);
