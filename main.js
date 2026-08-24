@@ -160,7 +160,6 @@ function seedConfigFromView(viewRoot) {
 }
 
 // src/style-manager.ts
-var STYLE_ID = "bases-tag-colors-style";
 function textColorFor(color) {
   let r, g, b;
   const hex = color.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
@@ -181,182 +180,205 @@ function textColorFor(color) {
   }
   return (r * 299 + g * 587 + b * 114) / 1e3 >= 150 ? "#1e1e1e" : "white";
 }
-function escapeAttr(value) {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+var COLOR_RE = /^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|rgba?\(\s*[\d.,%\s/]+\))$/;
+function parseColumns(config) {
+  const columns = /* @__PURE__ */ new Map();
+  if (typeof config.columns !== "object" || config.columns === null)
+    return columns;
+  for (const [col, colorMap] of Object.entries(config.columns)) {
+    if (typeof colorMap !== "object" || colorMap === null)
+      continue;
+    for (const [rawValue, color] of Object.entries(colorMap)) {
+      if (typeof color !== "string" || !COLOR_RE.test(color))
+        continue;
+      const sanitized = sanitizeValue(rawValue);
+      if (!sanitized)
+        continue;
+      let values = columns.get(col);
+      if (!values) {
+        values = /* @__PURE__ */ new Map();
+        columns.set(col, values);
+      }
+      values.set(sanitized, color);
+    }
+  }
+  return columns;
 }
 var StyleManager = class {
   constructor() {
-    this.rulesByBase = /* @__PURE__ */ new Map();
-    // basePath → (sanitized value → generated color); rebuilt into rules BEFORE
-    // the configured rules so a configured color always wins at equal specificity
+    this.configByBase = /* @__PURE__ */ new Map();
+    // basePath → (sanitized value → generated color); a configured color always
+    // wins over these — precedence is explicit in resolveBaseColor
     this.autoColorsByBase = /* @__PURE__ */ new Map();
-    // Note Properties panel: configured rules (merged across all bases) + auto colors
-    this.propertyRules = [];
+    // Note Properties panel: configured colors (merged across all bases) + auto colors
+    this.propertyConfig = /* @__PURE__ */ new Map();
     this.propertyAutoColors = /* @__PURE__ */ new Map();
-    this.shapeRule = "";
-    this.styleEl = this.getOrCreate();
-  }
-  getOrCreate() {
-    let el = document.getElementById(STYLE_ID);
-    if (!el || !el.isConnected) {
-      el = document.createElement("style");
-      el.id = STYLE_ID;
-      el.type = "text/css";
-      document.head.appendChild(el);
-    }
-    return el;
   }
   setRulesForBase(basePath, config) {
-    const rules = [];
-    const escapedPath = escapeAttr(basePath);
-    for (const [col, colorMap] of Object.entries(config.columns)) {
-      if (typeof colorMap !== "object" || colorMap === null)
-        continue;
-      for (const [rawValue, color] of Object.entries(colorMap)) {
-        if (typeof color !== "string" || !/^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|rgba?\(\s*[\d.,%\s/]+\))$/.test(color))
-          continue;
-        const sanitized = sanitizeValue(rawValue);
-        if (!sanitized)
-          continue;
-        const fg = textColorFor(color);
-        if (col === "*") {
-          rules.push(
-            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
-          );
-        } else {
-          const escapedCol = escapeAttr(col);
-          rules.push(
-            `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
-          );
-        }
-      }
-    }
-    this.rulesByBase.set(basePath, rules);
-    this.rebuild();
+    this.configByBase.set(basePath, parseColumns(config));
+    this.repaintBase(basePath);
   }
   // Global pill shape (padding / border-radius), applied to ALL pills inside
   // tagged bases views — and the note Properties panel when that coloring is
-  // on — so rows stay uniform whether or not a pill is colored. Sets
-  // Obsidian's --pill-* variables AND the properties directly, so it wins
-  // against both var-based and hardcoded theme styles.
+  // on — so rows stay uniform whether or not a pill is colored. The rules live
+  // in styles.css, gated on body classes; only the three size variables are
+  // set here. They zero Obsidian's --pill-padding-x on purpose: core feeds it
+  // into the content's margin-inline-start AND the remove button's
+  // margin-inline-end, so leaving it set doubles the horizontal cost on top
+  // of our own padding.
   setShape(shape) {
-    if (!shape.customShape) {
-      this.shapeRule = "";
-    } else {
-      const px = Math.round(shape.paddingX);
-      const py = Math.round(shape.paddingY);
-      const br = Math.round(shape.borderRadius);
-      const pillScopes = shape.propertiesColor ? "[data-bases-tag-colors-id] .multi-select-pill, .metadata-property .multi-select-pill" : "[data-bases-tag-colors-id] .multi-select-pill";
-      const contentScopes = shape.propertiesColor ? "[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content, .metadata-property .multi-select-pill .multi-select-pill-content" : "[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content";
-      this.shapeRule = `${pillScopes} { --pill-padding-x: 0px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; gap: 3px !important; align-items: center !important; }
-${contentScopes} { line-height: 1 !important; }`;
+    const body = document.body;
+    body.toggleClass("blc-shape", shape.customShape);
+    body.toggleClass("blc-shape-props", shape.customShape && shape.propertiesColor);
+    if (shape.customShape) {
+      body.setCssProps({
+        "--blc-px": `${Math.round(shape.paddingX)}px`,
+        "--blc-py": `${Math.round(shape.paddingY)}px`,
+        "--blc-br": `${Math.round(shape.borderRadius)}px`
+      });
     }
-    this.rebuild();
   }
   clearRulesForBase(basePath) {
-    this.rulesByBase.delete(basePath);
+    this.configByBase.delete(basePath);
     this.autoColorsByBase.delete(basePath);
-    this.rebuild();
+    this.repaintBase(basePath);
   }
   // Register newly-seen pill values for a base; generates a stable hash color
-  // for each. No-ops (no rebuild) when nothing new appeared.
+  // for each. Painting is the caller's job (refreshView always paints after).
   addAutoValuesForBase(basePath, sanitizedValues) {
     let colors = this.autoColorsByBase.get(basePath);
     if (!colors) {
       colors = /* @__PURE__ */ new Map();
       this.autoColorsByBase.set(basePath, colors);
     }
-    let changed = false;
     for (const v of sanitizedValues) {
-      if (!colors.has(v)) {
+      if (!colors.has(v))
         colors.set(v, generateColorFromText(v));
-        changed = true;
-      }
     }
-    if (changed)
-      this.rebuild();
   }
   clearAllAutoColors() {
     this.autoColorsByBase.clear();
     this.propertyAutoColors.clear();
-    this.rebuild();
+    this.repaintAll();
   }
   // Colors for the note Properties panel, merged from every base's config.
   // Column-specific entries match the property key; '*' entries match any.
-  // Later bases overwrite earlier on collisions (dedupe by col+value).
+  // Later bases overwrite earlier on collisions.
   setPropertyRules(configs) {
     const merged = /* @__PURE__ */ new Map();
     for (const config of configs) {
-      if (typeof config.columns !== "object" || config.columns === null)
-        continue;
-      for (const [col, colorMap] of Object.entries(config.columns)) {
-        if (typeof colorMap !== "object" || colorMap === null)
-          continue;
-        for (const [rawValue, color] of Object.entries(colorMap)) {
-          if (typeof color !== "string" || !/^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}|rgba?\(\s*[\d.,%\s/]+\))$/.test(color))
-            continue;
-          const sanitized = sanitizeValue(rawValue);
-          if (!sanitized)
-            continue;
-          const selector = col === "*" ? `.metadata-property .multi-select-pill[data-blc-value="${sanitized}"]` : `.metadata-property[data-property-key="${escapeAttr(col)}"] .multi-select-pill[data-blc-value="${sanitized}"]`;
-          merged.set(`${col}\0${sanitized}`, { selector, color });
+      for (const [col, values] of parseColumns(config).entries()) {
+        let target = merged.get(col);
+        if (!target) {
+          target = /* @__PURE__ */ new Map();
+          merged.set(col, target);
         }
+        for (const [value, color] of values.entries())
+          target.set(value, color);
       }
     }
-    this.propertyRules = [...merged.values()].map(
-      ({ selector, color }) => `${selector} { background-color: ${color} !important; color: ${textColorFor(color)}; }`
-    );
-    this.rebuild();
+    this.propertyConfig = merged;
+    this.paintProperties();
   }
+  // Painting is the caller's job (processPropertyPills always paints after)
   addPropertyAutoValues(sanitizedValues) {
-    let changed = false;
     for (const v of sanitizedValues) {
       if (!this.propertyAutoColors.has(v)) {
         this.propertyAutoColors.set(v, generateColorFromText(v));
-        changed = true;
       }
     }
-    if (changed)
-      this.rebuild();
   }
   clearPropertyRules() {
-    this.propertyRules = [];
+    this.propertyConfig = /* @__PURE__ */ new Map();
     this.propertyAutoColors.clear();
-    this.rebuild();
+    this.paintProperties();
   }
-  clearAll() {
-    this.rulesByBase.clear();
-    this.autoColorsByBase.clear();
-    this.propertyRules = [];
-    this.propertyAutoColors.clear();
-    this.shapeRule = "";
-    this.styleEl.textContent = "";
+  // ── Painting ─────────────────────────────────────────────────────────
+  paintView(rootEl, basePath) {
+    rootEl.querySelectorAll(".multi-select-pill[data-blc-value]").forEach((pill) => {
+      const value = pill.getAttribute("data-blc-value");
+      if (!value)
+        return;
+      const col = pill.getAttribute("data-blc-col");
+      this.applyPaint(pill, this.resolveBaseColor(basePath, col, value));
+    });
   }
-  rebuild() {
-    const all = [];
-    if (this.shapeRule)
-      all.push(this.shapeRule);
-    for (const [value, color] of this.propertyAutoColors.entries()) {
-      all.push(
-        `.metadata-property .multi-select-pill[data-blc-value="${value}"] { background-color: ${color} !important; color: ${textColorFor(color)}; }`
-      );
+  // Column matching rides the panel's own data-property-key attribute
+  paintProperties() {
+    document.body.querySelectorAll(".metadata-property .multi-select-pill[data-blc-value]").forEach((pill) => {
+      var _a, _b;
+      const value = pill.getAttribute("data-blc-value");
+      if (!value)
+        return;
+      const key = (_b = (_a = pill.closest(".metadata-property")) == null ? void 0 : _a.getAttribute("data-property-key")) != null ? _b : null;
+      this.applyPaint(pill, this.resolvePropertyColor(key, value));
+    });
+  }
+  unpaintPill(pill) {
+    pill.removeClass("blc-colored");
+    pill.setCssProps({ "--blc-bg": "", "--blc-fg": "" });
+  }
+  // Precedence: configured column-specific > configured '*' > auto
+  resolveBaseColor(basePath, col, value) {
+    var _a, _b, _c, _d;
+    const config = this.configByBase.get(basePath);
+    if (config) {
+      const specific = col ? (_a = config.get(col)) == null ? void 0 : _a.get(value) : void 0;
+      if (specific)
+        return specific;
+      const any = (_b = config.get("*")) == null ? void 0 : _b.get(value);
+      if (any)
+        return any;
     }
-    all.push(...this.propertyRules);
-    for (const [basePath, colors] of this.autoColorsByBase.entries()) {
-      const escapedPath = escapeAttr(basePath);
-      for (const [value, color] of colors.entries()) {
-        all.push(
-          `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${value}"] { background-color: ${color} !important; color: ${textColorFor(color)}; }`
-        );
+    return (_d = (_c = this.autoColorsByBase.get(basePath)) == null ? void 0 : _c.get(value)) != null ? _d : null;
+  }
+  resolvePropertyColor(key, value) {
+    var _a, _b, _c;
+    const specific = key ? (_a = this.propertyConfig.get(key)) == null ? void 0 : _a.get(value) : void 0;
+    if (specific)
+      return specific;
+    const any = (_b = this.propertyConfig.get("*")) == null ? void 0 : _b.get(value);
+    if (any)
+      return any;
+    return (_c = this.propertyAutoColors.get(value)) != null ? _c : null;
+  }
+  applyPaint(pill, color) {
+    if (color) {
+      pill.addClass("blc-colored");
+      pill.setCssProps({ "--blc-bg": color, "--blc-fg": textColorFor(color) });
+    } else if (pill.hasClass("blc-colored")) {
+      this.unpaintPill(pill);
+    }
+  }
+  baseRoots() {
+    return Array.from(document.querySelectorAll("[data-bases-tag-colors-id]"));
+  }
+  repaintBase(basePath) {
+    for (const root of this.baseRoots()) {
+      if (root.getAttribute("data-bases-tag-colors-id") === basePath) {
+        this.paintView(root, basePath);
       }
     }
-    for (const rules of this.rulesByBase.values())
-      all.push(...rules);
-    this.styleEl.textContent = all.join("\n");
+  }
+  repaintAll() {
+    for (const root of this.baseRoots()) {
+      const basePath = root.getAttribute("data-bases-tag-colors-id");
+      if (basePath)
+        this.paintView(root, basePath);
+    }
+    this.paintProperties();
+  }
+  clearAll() {
+    this.configByBase.clear();
+    this.autoColorsByBase.clear();
+    this.propertyConfig = /* @__PURE__ */ new Map();
+    this.propertyAutoColors.clear();
+    document.querySelectorAll(".blc-colored").forEach((pill) => this.unpaintPill(pill));
+    document.body.removeClass("blc-shape", "blc-shape-props");
+    document.body.setCssProps({ "--blc-px": "", "--blc-py": "", "--blc-br": "" });
   }
   destroy() {
     this.clearAll();
-    this.styleEl.remove();
   }
 };
 
@@ -549,7 +571,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     containerEl.addClass("blc-settings");
     const hero = containerEl.createDiv({ cls: "blc-hero" });
     hero.createEl("p", { text: "BASES TAG COLORS", cls: "blc-hero-eyebrow" });
-    hero.createEl("h1", { text: "Bring life to your tags.", cls: "blc-hero-title" });
+    hero.createDiv({ text: "Bring life to your tags.", cls: "blc-hero-title" });
     hero.createEl("p", { text: `v${this.plugin.manifest.version} By Oleg Brovchenko`, cls: "blc-hero-meta" });
     const headerEl = containerEl.createDiv({ cls: "blc-header" });
     const selectorWrapper = headerEl.createDiv({ cls: "blc-selector-wrapper" });
@@ -663,7 +685,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       { title: "Per-base palettes", body: "Each .base file gets a sibling .colors.json." }
     ].forEach((f) => {
       const item = grid.createDiv({ cls: "blc-feature-item" });
-      item.createEl("h3", { text: f.title, cls: "blc-feature-title" });
+      item.createDiv({ text: f.title, cls: "blc-feature-title" });
       item.createEl("p", { text: f.body, cls: "blc-feature-body" });
     });
     const problemSection = containerEl.createDiv({ cls: "blc-text-section" });
@@ -728,11 +750,12 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     const shape = this.plugin.settings;
     listEl.querySelectorAll(".blc-pill-preview").forEach((el) => {
       if (shape.customShape) {
-        el.style.padding = `${shape.paddingY}px ${shape.paddingX}px`;
-        el.style.borderRadius = `${shape.borderRadius}px`;
+        el.setCssStyles({
+          padding: `${shape.paddingY}px ${shape.paddingX}px`,
+          borderRadius: `${shape.borderRadius}px`
+        });
       } else {
-        el.style.padding = "";
-        el.style.borderRadius = "";
+        el.setCssStyles({ padding: "", borderRadius: "" });
       }
     });
   }
@@ -779,7 +802,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     row.dataset.col = col;
     row.dataset.value = rawValue.toLowerCase();
     const pillPreview = row.createEl("span", { text: rawValue, cls: "blc-pill-preview" });
-    pillPreview.style.backgroundColor = color;
+    pillPreview.setCssStyles({ backgroundColor: color });
     row.createEl("span", { text: col === "*" ? "any column" : col, cls: "blc-col-badge" });
     row.createDiv({ cls: "blc-spacer" });
     const picker = row.createEl("input", { cls: "blc-color-picker" });
@@ -793,7 +816,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     const removeBtn = row.createEl("button", { text: "\xD7", cls: "blc-remove-btn" });
     picker.addEventListener("input", () => {
       hexInput.value = picker.value;
-      pillPreview.style.backgroundColor = picker.value;
+      pillPreview.setCssStyles({ backgroundColor: picker.value });
       this.setColor(col, rawValue, picker.value);
       this.debouncedSaveApply();
     });
@@ -801,7 +824,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       const val = hexInput.value.trim();
       if (/^#[0-9a-fA-F]{6}$/.test(val)) {
         picker.value = val;
-        pillPreview.style.backgroundColor = val;
+        pillPreview.setCssStyles({ backgroundColor: val });
         this.setColor(col, rawValue, val);
         this.saveAndApply();
       } else {
@@ -860,7 +883,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       const valueText = (_a = row.dataset.value) != null ? _a : "";
       const colText = (_b = row.dataset.col) != null ? _b : "";
       const matches = !q || valueText.includes(q) || colText.includes(q);
-      row.style.display = matches ? "" : "none";
+      row.toggleClass("blc-row-hidden", !matches);
     });
   }
   setColor(col, rawValue, color) {
@@ -999,7 +1022,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     observer.observe(rootEl, { childList: true, subtree: true });
     return observer;
   }
-  // D3: load config, inject CSS, stamp pills, wire observer
+  // D3: load config, register colors, stamp + paint pills, wire observer
   async activateLeaf(leaf) {
     const basePath = getBasePath(leaf);
     if (!basePath) {
@@ -1031,6 +1054,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       return;
     state.observer.disconnect();
     state.rootEl.querySelectorAll("[data-blc-value], [data-blc-col]").forEach((el) => {
+      this.styles.unpaintPill(el);
       el.removeAttribute("data-blc-value");
       el.removeAttribute("data-blc-col");
     });
@@ -1092,12 +1116,13 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (this.settings.propertiesColor)
       this.processPropertyPills();
   }
-  // Stamp pills and, when enabled, register their values for auto colors
+  // Stamp pills, register their values for auto colors when enabled, then paint
   refreshView(rootEl, basePath) {
     const values = processBaseView(rootEl);
     if (this.settings.autoColor) {
       this.styles.addAutoValuesForBase(basePath, values);
     }
+    this.styles.paintView(rootEl, basePath);
   }
   // ── Note Properties coloring ─────────────────────────────────────────
   applyPropertiesToggle() {
@@ -1124,7 +1149,10 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       return;
     this.propsObserver.disconnect();
     this.propsObserver = null;
-    document.body.querySelectorAll(".metadata-property .multi-select-pill[data-blc-value]").forEach((el) => el.removeAttribute("data-blc-value"));
+    document.body.querySelectorAll(".metadata-property .multi-select-pill[data-blc-value]").forEach((el) => {
+      this.styles.unpaintPill(el);
+      el.removeAttribute("data-blc-value");
+    });
     this.styles.clearPropertyRules();
   }
   // Stamp pills in every visible Properties panel. Column matching rides the
@@ -1146,6 +1174,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (this.settings.autoColor && values.length) {
       this.styles.addPropertyAutoValues(values);
     }
+    this.styles.paintProperties();
   }
   async reloadPropertyConfigs() {
     if (!this.settings.propertiesColor)

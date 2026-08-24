@@ -135,7 +135,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		return observer;
 	}
 
-	// D3: load config, inject CSS, stamp pills, wire observer
+	// D3: load config, register colors, stamp + paint pills, wire observer
 	private async activateLeaf(leaf: WorkspaceLeaf): Promise<void> {
 		const basePath = getBasePath(leaf);
 		if (!basePath) {
@@ -177,10 +177,11 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (!state) return;
 		state.observer.disconnect();
 
-		// Remove data-blc-* attrs from all pills in this view
+		// Remove data-blc-* attrs and paint from all pills in this view
 		state.rootEl
 			.querySelectorAll<HTMLElement>('[data-blc-value], [data-blc-col]')
 			.forEach(el => {
+				this.styles.unpaintPill(el);
 				el.removeAttribute('data-blc-value');
 				el.removeAttribute('data-blc-col');
 			});
@@ -252,12 +253,13 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (this.settings.propertiesColor) this.processPropertyPills();
 	}
 
-	// Stamp pills and, when enabled, register their values for auto colors
+	// Stamp pills, register their values for auto colors when enabled, then paint
 	private refreshView(rootEl: HTMLElement, basePath: string): void {
 		const values = processBaseView(rootEl);
 		if (this.settings.autoColor) {
 			this.styles.addAutoValuesForBase(basePath, values);
 		}
+		this.styles.paintView(rootEl, basePath);
 	}
 
 	// ── Note Properties coloring ─────────────────────────────────────────
@@ -287,7 +289,10 @@ export default class BasesTagColorsPlugin extends Plugin {
 		this.propsObserver = null;
 		document.body
 			.querySelectorAll<HTMLElement>('.metadata-property .multi-select-pill[data-blc-value]')
-			.forEach(el => el.removeAttribute('data-blc-value'));
+			.forEach(el => {
+				this.styles.unpaintPill(el);
+				el.removeAttribute('data-blc-value');
+			});
 		this.styles.clearPropertyRules();
 	}
 
@@ -309,6 +314,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (this.settings.autoColor && values.length) {
 			this.styles.addPropertyAutoValues(values);
 		}
+		this.styles.paintProperties();
 	}
 
 	private async reloadPropertyConfigs(): Promise<void> {

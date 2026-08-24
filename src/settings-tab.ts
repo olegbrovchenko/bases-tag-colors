@@ -38,7 +38,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		// ── 1. Hero ──
 		const hero = containerEl.createDiv({ cls: 'blc-hero' });
 		hero.createEl('p', { text: 'BASES TAG COLORS', cls: 'blc-hero-eyebrow' });
-		hero.createEl('h1', { text: 'Bring life to your tags.', cls: 'blc-hero-title' });
+		hero.createDiv({ text: 'Bring life to your tags.', cls: 'blc-hero-title' });
 		hero.createEl('p', { text: `v${this.plugin.manifest.version} By Oleg Brovchenko`, cls: 'blc-hero-meta' });
 
 		// ── 2. Functional UI: base selector + import ──
@@ -187,7 +187,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			{ title: 'Per-base palettes', body: 'Each .base file gets a sibling .colors.json.' },
 		] as Array<{title: string; body: string}>).forEach(f => {
 			const item = grid.createDiv({ cls: 'blc-feature-item' });
-			item.createEl('h3', { text: f.title, cls: 'blc-feature-title' });
+			item.createDiv({ text: f.title, cls: 'blc-feature-title' });
 			item.createEl('p', { text: f.body, cls: 'blc-feature-body' });
 		});
 
@@ -277,11 +277,12 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		const shape = this.plugin.settings;
 		listEl.querySelectorAll<HTMLElement>('.blc-pill-preview').forEach(el => {
 			if (shape.customShape) {
-				el.style.padding = `${shape.paddingY}px ${shape.paddingX}px`;
-				el.style.borderRadius = `${shape.borderRadius}px`;
+				el.setCssStyles({
+					padding: `${shape.paddingY}px ${shape.paddingX}px`,
+					borderRadius: `${shape.borderRadius}px`,
+				});
 			} else {
-				el.style.padding = '';
-				el.style.borderRadius = '';
+				el.setCssStyles({ padding: '', borderRadius: '' });
 			}
 		});
 	}
@@ -339,7 +340,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 
 		// Pill preview — mirrors real Bases pill appearance
 		const pillPreview = row.createEl('span', { text: rawValue, cls: 'blc-pill-preview' });
-		pillPreview.style.backgroundColor = color;
+		pillPreview.setCssStyles({ backgroundColor: color });
 
 		// Column badge
 		row.createEl('span', { text: col === '*' ? 'any column' : col, cls: 'blc-col-badge' });
@@ -365,7 +366,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		// Sync: picker → hex + pill
 		picker.addEventListener('input', () => {
 			hexInput.value = picker.value;
-			pillPreview.style.backgroundColor = picker.value;
+			pillPreview.setCssStyles({ backgroundColor: picker.value });
 			this.setColor(col, rawValue, picker.value);
 			this.debouncedSaveApply();
 		});
@@ -375,7 +376,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			const val = hexInput.value.trim();
 			if (/^#[0-9a-fA-F]{6}$/.test(val)) {
 				picker.value = val;
-				pillPreview.style.backgroundColor = val;
+				pillPreview.setCssStyles({ backgroundColor: val });
 				this.setColor(col, rawValue, val);
 				this.saveAndApply();
 			} else {
@@ -438,7 +439,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			const valueText = row.dataset.value ?? '';
 			const colText = row.dataset.col ?? '';
 			const matches = !q || valueText.includes(q) || colText.includes(q);
-			row.style.display = matches ? '' : 'none';
+			row.toggleClass('blc-row-hidden', !matches);
 		});
 	}
 

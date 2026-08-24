@@ -3,7 +3,41 @@
 	transition: background-color 100ms ease;
 }
 
+/* Colored pill: --blc-bg / --blc-fg are set per-pill by the plugin (setCssProps) */
+.multi-select-pill.blc-colored {
+	background-color: var(--blc-bg) !important;
+	color: var(--blc-fg);
+}
+
+/* Custom pill shape: --blc-px/--blc-py/--blc-br are set on body by the plugin.
+   --pill-padding-x is zeroed on purpose: core feeds it into the content's
+   margin-inline-start AND the remove button's margin-inline-end, so leaving it
+   set doubles the horizontal cost on top of our own padding. With it at 0 our
+   padding is the single source of pill width; gap owns the text-to-X distance. */
+body.blc-shape [data-bases-tag-colors-id] .multi-select-pill,
+body.blc-shape.blc-shape-props .metadata-property .multi-select-pill {
+	--pill-padding-x: 0px;
+	--pill-padding-y: var(--blc-py);
+	--pill-radius: var(--blc-br);
+	padding: var(--blc-py) var(--blc-px) !important;
+	border-radius: var(--blc-br) !important;
+	gap: 3px !important;
+	align-items: center !important;
+}
+
+/* No optical trim: centering the caps-only band shoves descender glyphs
+   (open, manager) into the bottom edge. Stock font-box centering is the
+   correct compromise for mixed-case tag values. */
+body.blc-shape [data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content,
+body.blc-shape.blc-shape-props .metadata-property .multi-select-pill .multi-select-pill-content {
+	line-height: 1 !important;
+}
+
 /* ── Settings panel ── */
+.blc-row-hidden {
+	display: none;
+}
+
 .blc-settings {
 	padding: 16px 24px;
 	max-width: 700px;
@@ -81,7 +115,7 @@
 	justify-content: center;
 }
 
-.blc-features-grid h3.blc-feature-title {
+.blc-features-grid .blc-feature-title {
 	font-size: 12px;
 	font-weight: 700;
 	color: #f4b53f;
