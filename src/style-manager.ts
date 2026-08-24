@@ -68,18 +68,11 @@ export class StyleManager {
 				`--pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; ` +
 				`padding: ${py}px ${px}px !important; border-radius: ${br}px !important; ` +
 				`align-items: center !important; }\n` +
+				// No optical trim: centering the caps-only band shoves descender
+				// glyphs (open, manager) into the bottom edge. Stock font-box
+				// centering is the correct compromise for mixed-case tag values.
 				`[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { ` +
-				`line-height: 1 !important; }\n` +
-				// Optical vertical centering: the em box reserves descender room below
-				// the baseline, so glyphs sit high even when the box is flex-centered.
-				// text-box trims the box to the real glyph bounds (Chromium 133+);
-				// older builds get a metric-proportional nudge instead.
-				`@supports (text-box: trim-both cap alphabetic) { ` +
-				`[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { ` +
-				`text-box: trim-both cap alphabetic; } }\n` +
-				`@supports not (text-box: trim-both cap alphabetic) { ` +
-				`[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { ` +
-				`transform: translateY(0.07em); } }`;
+				`line-height: 1 !important; }`;
 		}
 		this.rebuild();
 	}
