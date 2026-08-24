@@ -163,7 +163,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		const raced = this.activeLeaves.get(leaf);
 		if (raced && raced.basePath === basePath) return;
 
-		this.styles.setRulesForBase(basePath, config);
+		this.styles.setColorsForBase(basePath, config);
 		this.refreshView(rootEl, basePath);
 
 		// D4: MutationObserver for virtualised rows
@@ -189,9 +189,9 @@ export default class BasesTagColorsPlugin extends Plugin {
 		untagLeaf(leaf);
 		this.activeLeaves.delete(leaf);
 
-		// Clear CSS rules if no other leaf is showing the same base
+		// Drop the base's stored colors if no other leaf is showing it
 		const stillOpen = [...this.activeLeaves.values()].some(s => s.basePath === state.basePath);
-		if (!stillOpen) this.styles.clearRulesForBase(state.basePath);
+		if (!stillOpen) this.styles.clearColorsForBase(state.basePath);
 	}
 
 	// Re-tag + re-apply all current bases leaves; clean up closed ones
@@ -213,7 +213,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 	// Re-queries rootEl on every call — guards against DOM refresh (e.g. after Settings close).
 	async applyToBase(basePath: string): Promise<void> {
 		const config = await loadConfig(this.app, basePath);
-		this.styles.setRulesForBase(basePath, config);
+		this.styles.setColorsForBase(basePath, config);
 		for (const [leaf, state] of this.activeLeaves.entries()) {
 			if (state.basePath !== basePath) continue;
 			const freshRoot = tagLeaf(leaf, basePath);
@@ -293,7 +293,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 				this.styles.unpaintPill(el);
 				el.removeAttribute('data-blc-value');
 			});
-		this.styles.clearPropertyRules();
+		this.styles.clearPropertyColors();
 	}
 
 	// Stamp pills in every visible Properties panel. Column matching rides the
@@ -323,7 +323,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		const configs = await Promise.all(
 			colorsFiles.map(f => loadConfig(this.app, basePathFromColorsPath(f.path)))
 		);
-		this.styles.setPropertyRules(configs);
+		this.styles.setPropertyColors(configs);
 	}
 
 	onunload() {

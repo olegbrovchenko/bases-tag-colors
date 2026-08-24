@@ -62,7 +62,7 @@ export class StyleManager {
 	private propertyConfig: ColumnColors = new Map();
 	private propertyAutoColors: ValueColors = new Map();
 
-	setRulesForBase(basePath: string, config: ColorConfig): void {
+	setColorsForBase(basePath: string, config: ColorConfig): void {
 		this.configByBase.set(basePath, parseColumns(config));
 		this.repaintBase(basePath);
 	}
@@ -85,26 +85,34 @@ export class StyleManager {
 				'--blc-py': `${Math.round(shape.paddingY)}px`,
 				'--blc-br': `${Math.round(shape.borderRadius)}px`,
 			});
+		} else {
+			body.setCssProps({ '--blc-px': '', '--blc-py': '', '--blc-br': '' });
 		}
 	}
 
-	clearRulesForBase(basePath: string): void {
+	clearColorsForBase(basePath: string): void {
 		this.configByBase.delete(basePath);
 		this.autoColorsByBase.delete(basePath);
 		this.repaintBase(basePath);
 	}
 
 	// Register newly-seen pill values for a base; generates a stable hash color
-	// for each. Painting is the caller's job (refreshView always paints after).
+	// for each. On new values, repaints EVERY view of the base — a second pane
+	// showing the same base must pick them up now, not on its next mutation.
 	addAutoValuesForBase(basePath: string, sanitizedValues: string[]): void {
 		let colors = this.autoColorsByBase.get(basePath);
 		if (!colors) {
 			colors = new Map();
 			this.autoColorsByBase.set(basePath, colors);
 		}
+		let changed = false;
 		for (const v of sanitizedValues) {
-			if (!colors.has(v)) colors.set(v, generateColorFromText(v));
+			if (!colors.has(v)) {
+				colors.set(v, generateColorFromText(v));
+				changed = true;
+			}
 		}
+		if (changed) this.repaintBase(basePath);
 	}
 
 	clearAllAutoColors(): void {
@@ -116,7 +124,7 @@ export class StyleManager {
 	// Colors for the note Properties panel, merged from every base's config.
 	// Column-specific entries match the property key; '*' entries match any.
 	// Later bases overwrite earlier on collisions.
-	setPropertyRules(configs: ColorConfig[]): void {
+	setPropertyColors(configs: ColorConfig[]): void {
 		const merged: ColumnColors = new Map();
 		for (const config of configs) {
 			for (const [col, values] of parseColumns(config).entries()) {
@@ -141,7 +149,7 @@ export class StyleManager {
 		}
 	}
 
-	clearPropertyRules(): void {
+	clearPropertyColors(): void {
 		this.propertyConfig = new Map();
 		this.propertyAutoColors.clear();
 		this.paintProperties();
@@ -224,7 +232,7 @@ export class StyleManager {
 		this.paintProperties();
 	}
 
-	clearAll(): void {
+	destroy(): void {
 		this.configByBase.clear();
 		this.autoColorsByBase.clear();
 		this.propertyConfig = new Map();
@@ -232,9 +240,5 @@ export class StyleManager {
 		document.querySelectorAll<HTMLElement>('.blc-colored').forEach(pill => this.unpaintPill(pill));
 		document.body.removeClass('blc-shape', 'blc-shape-props');
 		document.body.setCssProps({ '--blc-px': '', '--blc-py': '', '--blc-br': '' });
-	}
-
-	destroy(): void {
-		this.clearAll();
 	}
 }

@@ -214,7 +214,7 @@ var StyleManager = class {
     this.propertyConfig = /* @__PURE__ */ new Map();
     this.propertyAutoColors = /* @__PURE__ */ new Map();
   }
-  setRulesForBase(basePath, config) {
+  setColorsForBase(basePath, config) {
     this.configByBase.set(basePath, parseColumns(config));
     this.repaintBase(basePath);
   }
@@ -236,25 +236,33 @@ var StyleManager = class {
         "--blc-py": `${Math.round(shape.paddingY)}px`,
         "--blc-br": `${Math.round(shape.borderRadius)}px`
       });
+    } else {
+      body.setCssProps({ "--blc-px": "", "--blc-py": "", "--blc-br": "" });
     }
   }
-  clearRulesForBase(basePath) {
+  clearColorsForBase(basePath) {
     this.configByBase.delete(basePath);
     this.autoColorsByBase.delete(basePath);
     this.repaintBase(basePath);
   }
   // Register newly-seen pill values for a base; generates a stable hash color
-  // for each. Painting is the caller's job (refreshView always paints after).
+  // for each. On new values, repaints EVERY view of the base — a second pane
+  // showing the same base must pick them up now, not on its next mutation.
   addAutoValuesForBase(basePath, sanitizedValues) {
     let colors = this.autoColorsByBase.get(basePath);
     if (!colors) {
       colors = /* @__PURE__ */ new Map();
       this.autoColorsByBase.set(basePath, colors);
     }
+    let changed = false;
     for (const v of sanitizedValues) {
-      if (!colors.has(v))
+      if (!colors.has(v)) {
         colors.set(v, generateColorFromText(v));
+        changed = true;
+      }
     }
+    if (changed)
+      this.repaintBase(basePath);
   }
   clearAllAutoColors() {
     this.autoColorsByBase.clear();
@@ -264,7 +272,7 @@ var StyleManager = class {
   // Colors for the note Properties panel, merged from every base's config.
   // Column-specific entries match the property key; '*' entries match any.
   // Later bases overwrite earlier on collisions.
-  setPropertyRules(configs) {
+  setPropertyColors(configs) {
     const merged = /* @__PURE__ */ new Map();
     for (const config of configs) {
       for (const [col, values] of parseColumns(config).entries()) {
@@ -288,7 +296,7 @@ var StyleManager = class {
       }
     }
   }
-  clearPropertyRules() {
+  clearPropertyColors() {
     this.propertyConfig = /* @__PURE__ */ new Map();
     this.propertyAutoColors.clear();
     this.paintProperties();
@@ -368,7 +376,7 @@ var StyleManager = class {
     }
     this.paintProperties();
   }
-  clearAll() {
+  destroy() {
     this.configByBase.clear();
     this.autoColorsByBase.clear();
     this.propertyConfig = /* @__PURE__ */ new Map();
@@ -376,9 +384,6 @@ var StyleManager = class {
     document.querySelectorAll(".blc-colored").forEach((pill) => this.unpaintPill(pill));
     document.body.removeClass("blc-shape", "blc-shape-props");
     document.body.setCssProps({ "--blc-px": "", "--blc-py": "", "--blc-br": "" });
-  }
-  destroy() {
-    this.clearAll();
   }
 };
 
@@ -1043,7 +1048,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     const raced = this.activeLeaves.get(leaf);
     if (raced && raced.basePath === basePath)
       return;
-    this.styles.setRulesForBase(basePath, config);
+    this.styles.setColorsForBase(basePath, config);
     this.refreshView(rootEl, basePath);
     const observer = this.createPillObserver(rootEl, basePath);
     this.activeLeaves.set(leaf, { basePath, rootEl, observer });
@@ -1062,7 +1067,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.activeLeaves.delete(leaf);
     const stillOpen = [...this.activeLeaves.values()].some((s) => s.basePath === state.basePath);
     if (!stillOpen)
-      this.styles.clearRulesForBase(state.basePath);
+      this.styles.clearColorsForBase(state.basePath);
   }
   // Re-tag + re-apply all current bases leaves; clean up closed ones
   syncLeaves() {
@@ -1080,7 +1085,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   // Re-queries rootEl on every call — guards against DOM refresh (e.g. after Settings close).
   async applyToBase(basePath) {
     const config = await loadConfig(this.app, basePath);
-    this.styles.setRulesForBase(basePath, config);
+    this.styles.setColorsForBase(basePath, config);
     for (const [leaf, state] of this.activeLeaves.entries()) {
       if (state.basePath !== basePath)
         continue;
@@ -1153,7 +1158,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       this.styles.unpaintPill(el);
       el.removeAttribute("data-blc-value");
     });
-    this.styles.clearPropertyRules();
+    this.styles.clearPropertyColors();
   }
   // Stamp pills in every visible Properties panel. Column matching rides the
   // panel's own data-property-key attribute, so only the value is stamped.
@@ -1183,7 +1188,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     const configs = await Promise.all(
       colorsFiles.map((f) => loadConfig(this.app, basePathFromColorsPath(f.path)))
     );
-    this.styles.setPropertyRules(configs);
+    this.styles.setPropertyColors(configs);
   }
   onunload() {
     if (this.layoutDebounce !== null) {

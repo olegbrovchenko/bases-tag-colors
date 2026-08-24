@@ -100,7 +100,7 @@ Save the file - colors update live, no restart needed.
 Open your base → Settings → select it → click **Import from active base**.  
 The old plugin's `data.json` is read-only - nothing is modified.
 
-Rollback: disable this plugin → all injected colors and DOM changes revert automatically.
+Rollback: disable this plugin → all applied colors and DOM changes revert automatically.
 
 ---
 
@@ -113,7 +113,7 @@ Rollback: disable this plugin → all injected colors and DOM changes revert aut
 
 ## Uninstall
 
-Disable the plugin - all injected colors revert automatically.  
+Disable the plugin - all applied colors revert automatically.  
 Your `.colors.json` files remain in the vault (harmless). Delete manually if desired.
 
 ---

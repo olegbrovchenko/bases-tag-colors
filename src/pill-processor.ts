@@ -2,7 +2,7 @@ import { sanitizeValue } from './config-io';
 
 // Walks all .multi-select-pill elements inside viewRoot, stamps data-blc-value + data-blc-col.
 // Idempotent: safe to call multiple times on the same DOM.
-// Returns the sanitized values it stamped, for auto-color rule generation.
+// Returns the sanitized values it stamped, for auto-color registration.
 export function processBaseView(viewRoot: HTMLElement): string[] {
 	const values: string[] = [];
 	viewRoot.querySelectorAll<HTMLElement>('.multi-select-pill').forEach(pill => {
