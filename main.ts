@@ -10,6 +10,7 @@ import {
 	cmdMigrateFromOldPlugin,
 } from './src/commands';
 import { BasesTagColorsSettingTab } from './src/settings-tab';
+import { DEFAULT_PILL_SHAPE, PillShapeSettings } from './src/types';
 
 interface LeafState {
 	basePath: string;
@@ -22,9 +23,12 @@ export default class BasesTagColorsPlugin extends Plugin {
 	private activeLeaves: Map<WorkspaceLeaf, LeafState> = new Map();
 	private layoutDebounce: number | null = null;
 	private colorsModifyDebounce: Map<string, number> = new Map();
+	shape: PillShapeSettings = { ...DEFAULT_PILL_SHAPE };
 
 	async onload() {
 		this.styles = new StyleManager();
+		this.shape = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+		this.styles.setShape(this.shape);
 
 		// B1/B2 + D3/D4: activate leaf when it becomes active
 		this.registerEvent(
@@ -206,6 +210,11 @@ export default class BasesTagColorsPlugin extends Plugin {
 			}
 			processBaseView(state.rootEl);
 		}
+	}
+
+	async saveShape(): Promise<void> {
+		await this.saveData(this.shape);
+		this.styles.setShape(this.shape);
 	}
 
 	onunload() {

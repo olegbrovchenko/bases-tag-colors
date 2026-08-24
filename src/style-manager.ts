@@ -1,4 +1,4 @@
-import { ColorConfig } from './types';
+import { ColorConfig, PillShapeSettings } from './types';
 import { sanitizeValue } from './config-io';
 
 const STYLE_ID = 'bases-tag-colors-style';
@@ -6,6 +6,7 @@ const STYLE_ID = 'bases-tag-colors-style';
 export class StyleManager {
 	private styleEl: HTMLStyleElement;
 	private rulesByBase: Map<string, string[]> = new Map();
+	private shapeRule: string = '';
 
 	constructor() {
 		this.styleEl = this.getOrCreate();
@@ -48,6 +49,25 @@ export class StyleManager {
 		}
 
 		this.rulesByBase.set(basePath, rules);
+		this.rebuild();
+	}
+
+	// Global pill shape (padding / border-radius), applied to ALL pills inside
+	// tagged bases views so rows stay uniform whether or not a pill is colored.
+	// Sets Obsidian's --pill-* variables AND the properties directly, so it wins
+	// against both var-based and hardcoded theme styles.
+	setShape(shape: PillShapeSettings): void {
+		if (!shape.customShape) {
+			this.shapeRule = '';
+		} else {
+			const px = Math.round(shape.paddingX);
+			const py = Math.round(shape.paddingY);
+			const br = Math.round(shape.borderRadius);
+			this.shapeRule =
+				`[data-bases-tag-colors-id] .multi-select-pill { ` +
+				`--pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; ` +
+				`padding: ${py}px ${px}px !important; border-radius: ${br}px !important; }`;
+		}
 		this.rebuild();
 	}
 

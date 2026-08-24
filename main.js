@@ -64,6 +64,12 @@ var DEFAULT_COLOR_CONFIG = {
   version: 1,
   columns: {}
 };
+var DEFAULT_PILL_SHAPE = {
+  customShape: true,
+  paddingX: 8,
+  paddingY: 2,
+  borderRadius: 4
+};
 
 // src/config-io.ts
 async function listBasesInVault(app) {
@@ -156,6 +162,7 @@ var STYLE_ID = "bases-tag-colors-style";
 var StyleManager = class {
   constructor() {
     this.rulesByBase = /* @__PURE__ */ new Map();
+    this.shapeRule = "";
     this.styleEl = this.getOrCreate();
   }
   getOrCreate() {
@@ -191,6 +198,21 @@ var StyleManager = class {
       }
     }
     this.rulesByBase.set(basePath, rules);
+    this.rebuild();
+  }
+  // Global pill shape (padding / border-radius), applied to ALL pills inside
+  // tagged bases views so rows stay uniform whether or not a pill is colored.
+  // Sets Obsidian's --pill-* variables AND the properties directly, so it wins
+  // against both var-based and hardcoded theme styles.
+  setShape(shape) {
+    if (!shape.customShape) {
+      this.shapeRule = "";
+    } else {
+      const px = Math.round(shape.paddingX);
+      const py = Math.round(shape.paddingY);
+      const br = Math.round(shape.borderRadius);
+      this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; }`;
+    }
     this.rebuild();
   }
   clearRulesForBase(basePath) {
@@ -381,7 +403,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     const hero = containerEl.createDiv({ cls: "blc-hero" });
     hero.createEl("p", { text: "BASES TAG COLORS", cls: "blc-hero-eyebrow" });
     hero.createEl("h1", { text: "Bring life to your tags.", cls: "blc-hero-title" });
-    hero.createEl("p", { text: "v1.1 By Oleg Brovchenko", cls: "blc-hero-meta" });
+    hero.createEl("p", { text: `v${this.plugin.manifest.version} By Oleg Brovchenko`, cls: "blc-hero-meta" });
     const headerEl = containerEl.createDiv({ cls: "blc-header" });
     const selectorWrapper = headerEl.createDiv({ cls: "blc-selector-wrapper" });
     selectorWrapper.createEl("label", { text: "Base:", cls: "blc-label" });
@@ -397,6 +419,8 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     containerEl.createEl("div", { text: "Add value", cls: "blc-section-label" });
     const addRowEl = containerEl.createDiv({ cls: "blc-add-row" });
     this.buildAddRow(addRowEl, listEl);
+    containerEl.createEl("div", { text: "Pill shape", cls: "blc-section-label" });
+    this.buildShapeSection(containerEl, listEl);
     const bases = await listBasesInVault(this.app);
     if (bases.length === 0) {
       select.createEl("option", { text: "No .base files found", value: "" });
@@ -491,6 +515,53 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
     containerEl.createEl("p", { text: "Enjoy! \u2014 Oleg Brovchenko", cls: "blc-signoff" });
   }
+  // Global pill shape controls: toggle + sliders, applied live to all bases views
+  // and mirrored on the pill previews in the color list above.
+  buildShapeSection(containerEl, listEl) {
+    const shape = this.plugin.shape;
+    const slidersEl = containerEl.createDiv();
+    const renderSliders = () => {
+      slidersEl.empty();
+      if (!shape.customShape)
+        return;
+      new import_obsidian2.Setting(slidersEl).setName("Horizontal padding").setDesc("Space left and right of the tag text.").addSlider((s) => s.setLimits(2, 18, 1).setValue(shape.paddingX).setDynamicTooltip().onChange(async (v) => {
+        shape.paddingX = v;
+        await this.plugin.saveShape();
+        this.applyPreviewShape(listEl);
+      }));
+      new import_obsidian2.Setting(slidersEl).setName("Vertical padding").setDesc("Space above and below the tag text.").addSlider((s) => s.setLimits(0, 10, 1).setValue(shape.paddingY).setDynamicTooltip().onChange(async (v) => {
+        shape.paddingY = v;
+        await this.plugin.saveShape();
+        this.applyPreviewShape(listEl);
+      }));
+      new import_obsidian2.Setting(slidersEl).setName("Corner radius").setDesc("0 = square, higher = rounder.").addSlider((s) => s.setLimits(0, 24, 1).setValue(shape.borderRadius).setDynamicTooltip().onChange(async (v) => {
+        shape.borderRadius = v;
+        await this.plugin.saveShape();
+        this.applyPreviewShape(listEl);
+      }));
+    };
+    new import_obsidian2.Setting(containerEl).setName("Customize pill shape").setDesc("Notion-style pill shape for Bases views: comfortable padding, mid-hard corners. Turn off to use your theme's default shape.").addToggle((t) => t.setValue(shape.customShape).onChange(async (v) => {
+      shape.customShape = v;
+      await this.plugin.saveShape();
+      renderSliders();
+      this.applyPreviewShape(listEl);
+    }));
+    containerEl.appendChild(slidersEl);
+    renderSliders();
+    this.applyPreviewShape(listEl);
+  }
+  applyPreviewShape(listEl) {
+    const shape = this.plugin.shape;
+    listEl.querySelectorAll(".blc-pill-preview").forEach((el) => {
+      if (shape.customShape) {
+        el.style.padding = `${shape.paddingY}px ${shape.paddingX}px`;
+        el.style.borderRadius = `${shape.borderRadius}px`;
+      } else {
+        el.style.padding = "";
+        el.style.borderRadius = "";
+      }
+    });
+  }
   updateImportBtnState(btn) {
     var _a;
     const leaf = this.app.workspace.activeLeaf;
@@ -527,6 +598,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       this.buildRow(listEl, entry.col, entry.rawValue, entry.color);
     }
     this.filterRows(listEl);
+    this.applyPreviewShape(listEl);
   }
   buildRow(listEl, col, rawValue, color) {
     const row = listEl.createDiv({ cls: "blc-row" });
@@ -653,9 +725,12 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.activeLeaves = /* @__PURE__ */ new Map();
     this.layoutDebounce = null;
     this.colorsModifyDebounce = /* @__PURE__ */ new Map();
+    this.shape = { ...DEFAULT_PILL_SHAPE };
   }
   async onload() {
     this.styles = new StyleManager();
+    this.shape = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+    this.styles.setShape(this.shape);
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         var _a;
@@ -811,6 +886,10 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       }
       processBaseView(state.rootEl);
     }
+  }
+  async saveShape() {
+    await this.saveData(this.shape);
+    this.styles.setShape(this.shape);
   }
   onunload() {
     if (this.layoutDebounce !== null) {

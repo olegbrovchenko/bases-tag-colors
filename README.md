@@ -14,6 +14,7 @@ Obsidian Bases has zero native pill colors. Bases Tag Colors fixes that — each
 - **Visual settings UI** — color picker, hex input, search bar. No manual JSON editing
 - **Live in 100ms** — edit the color, real time update
 - **Auto base detection** — automatically detects your active base
+- **Notion-style pill shape** — comfortable padding + mid-hard corners out of the box, with sliders to tune padding and radius (Settings → Pill shape). Toggle off to keep your theme's shape
 
 ---
 

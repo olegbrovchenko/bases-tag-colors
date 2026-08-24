@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type BasesTagColorsPlugin from '../main';
 import { listBasesInVault, loadConfig, saveConfig, sanitizeValue, seedConfigFromView, parseBaseColumns } from './config-io';
 import { ColorConfig } from './types';
@@ -32,7 +32,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		const hero = containerEl.createDiv({ cls: 'blc-hero' });
 		hero.createEl('p', { text: 'BASES TAG COLORS', cls: 'blc-hero-eyebrow' });
 		hero.createEl('h1', { text: 'Bring life to your tags.', cls: 'blc-hero-title' });
-		hero.createEl('p', { text: 'v1.1 By Oleg Brovchenko', cls: 'blc-hero-meta' });
+		hero.createEl('p', { text: `v${this.plugin.manifest.version} By Oleg Brovchenko`, cls: 'blc-hero-meta' });
 
 		// ── 2. Functional UI: base selector + import ──
 		const headerEl = containerEl.createDiv({ cls: 'blc-header' });
@@ -56,6 +56,10 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		containerEl.createEl('div', { text: 'Add value', cls: 'blc-section-label' });
 		const addRowEl = containerEl.createDiv({ cls: 'blc-add-row' });
 		this.buildAddRow(addRowEl, listEl);
+
+		// Pill shape (global appearance)
+		containerEl.createEl('div', { text: 'Pill shape', cls: 'blc-section-label' });
+		this.buildShapeSection(containerEl, listEl);
 
 		// Populate base selector
 		const bases = await listBasesInVault(this.app);
@@ -169,6 +173,86 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		containerEl.createEl('p', { text: 'Enjoy! — Oleg Brovchenko', cls: 'blc-signoff' });
 	}
 
+	// Global pill shape controls: toggle + sliders, applied live to all bases views
+	// and mirrored on the pill previews in the color list above.
+	private buildShapeSection(containerEl: HTMLElement, listEl: HTMLElement): void {
+		const shape = this.plugin.shape;
+		const slidersEl = containerEl.createDiv();
+
+		const renderSliders = () => {
+			slidersEl.empty();
+			if (!shape.customShape) return;
+
+			new Setting(slidersEl)
+				.setName('Horizontal padding')
+				.setDesc('Space left and right of the tag text.')
+				.addSlider(s => s
+					.setLimits(2, 18, 1)
+					.setValue(shape.paddingX)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						shape.paddingX = v;
+						await this.plugin.saveShape();
+						this.applyPreviewShape(listEl);
+					}));
+
+			new Setting(slidersEl)
+				.setName('Vertical padding')
+				.setDesc('Space above and below the tag text.')
+				.addSlider(s => s
+					.setLimits(0, 10, 1)
+					.setValue(shape.paddingY)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						shape.paddingY = v;
+						await this.plugin.saveShape();
+						this.applyPreviewShape(listEl);
+					}));
+
+			new Setting(slidersEl)
+				.setName('Corner radius')
+				.setDesc('0 = square, higher = rounder.')
+				.addSlider(s => s
+					.setLimits(0, 24, 1)
+					.setValue(shape.borderRadius)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						shape.borderRadius = v;
+						await this.plugin.saveShape();
+						this.applyPreviewShape(listEl);
+					}));
+		};
+
+		new Setting(containerEl)
+			.setName('Customize pill shape')
+			.setDesc('Notion-style pill shape for Bases views: comfortable padding, mid-hard corners. Turn off to use your theme\'s default shape.')
+			.addToggle(t => t
+				.setValue(shape.customShape)
+				.onChange(async (v) => {
+					shape.customShape = v;
+					await this.plugin.saveShape();
+					renderSliders();
+					this.applyPreviewShape(listEl);
+				}));
+
+		containerEl.appendChild(slidersEl);
+		renderSliders();
+		this.applyPreviewShape(listEl);
+	}
+
+	private applyPreviewShape(listEl: HTMLElement): void {
+		const shape = this.plugin.shape;
+		listEl.querySelectorAll<HTMLElement>('.blc-pill-preview').forEach(el => {
+			if (shape.customShape) {
+				el.style.padding = `${shape.paddingY}px ${shape.paddingX}px`;
+				el.style.borderRadius = `${shape.borderRadius}px`;
+			} else {
+				el.style.padding = '';
+				el.style.borderRadius = '';
+			}
+		});
+	}
+
 	private updateImportBtnState(btn: HTMLButtonElement): void {
 		const leaf = this.app.workspace.activeLeaf;
 		const isBasesView = leaf?.view?.getViewType() === 'bases';
@@ -212,6 +296,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		}
 
 		this.filterRows(listEl);
+		this.applyPreviewShape(listEl);
 	}
 
 	private buildRow(listEl: HTMLElement, col: string, rawValue: string, color: string): void {
