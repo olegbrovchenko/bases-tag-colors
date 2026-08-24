@@ -107,6 +107,24 @@ export default class BasesTagColorsPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => this.syncLeaves());
 	}
 
+	// Watch a view root for virtualised rows adding pills, re-stamp when they appear
+	private createPillObserver(rootEl: HTMLElement): MutationObserver {
+		const observer = new MutationObserver((mutations) => {
+			const hasPills = mutations.some(m =>
+				m.type === 'childList' &&
+				Array.from(m.addedNodes).some(node => {
+					if (node.nodeType !== Node.ELEMENT_NODE) return false;
+					const el = node as HTMLElement;
+					return el.classList.contains('multi-select-pill') ||
+						el.querySelector?.('.multi-select-pill') !== null;
+				})
+			);
+			if (hasPills) processBaseView(rootEl);
+		});
+		observer.observe(rootEl, { childList: true, subtree: true });
+		return observer;
+	}
+
 	// D3: load config, inject CSS, stamp pills, wire observer
 	private async activateLeaf(leaf: WorkspaceLeaf): Promise<void> {
 		const basePath = getBasePath(leaf);
@@ -133,19 +151,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		processBaseView(rootEl);
 
 		// D4: MutationObserver for virtualised rows
-		const observer = new MutationObserver((mutations) => {
-			const hasPills = mutations.some(m =>
-				m.type === 'childList' &&
-				Array.from(m.addedNodes).some(node => {
-					if (node.nodeType !== Node.ELEMENT_NODE) return false;
-					const el = node as HTMLElement;
-					return el.classList.contains('multi-select-pill') ||
-						el.querySelector?.('.multi-select-pill') !== null;
-				})
-			);
-			if (hasPills) processBaseView(rootEl);
-		});
-		observer.observe(rootEl, { childList: true, subtree: true });
+		const observer = this.createPillObserver(rootEl);
 
 		this.activeLeaves.set(leaf, { basePath, rootEl, observer });
 	}
@@ -199,20 +205,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 				// DOM was refreshed — reconnect MutationObserver to new element
 				state.observer.disconnect();
 				state.rootEl = freshRoot;
-				const obs = new MutationObserver((mutations) => {
-					const hasPills = mutations.some(m =>
-						m.type === 'childList' &&
-						Array.from(m.addedNodes).some(node => {
-							if (node.nodeType !== Node.ELEMENT_NODE) return false;
-							const el = node as HTMLElement;
-							return el.classList.contains('multi-select-pill') ||
-								el.querySelector?.('.multi-select-pill') !== null;
-						})
-					);
-					if (hasPills) processBaseView(freshRoot);
-				});
-				obs.observe(freshRoot, { childList: true, subtree: true });
-				state.observer = obs;
+				state.observer = this.createPillObserver(freshRoot);
 			}
 			processBaseView(state.rootEl);
 		}

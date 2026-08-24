@@ -812,6 +812,24 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.addSettingTab(new BasesTagColorsSettingTab(this.app, this));
     this.app.workspace.onLayoutReady(() => this.syncLeaves());
   }
+  // Watch a view root for virtualised rows adding pills, re-stamp when they appear
+  createPillObserver(rootEl) {
+    const observer = new MutationObserver((mutations) => {
+      const hasPills = mutations.some(
+        (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
+          var _a;
+          if (node.nodeType !== Node.ELEMENT_NODE)
+            return false;
+          const el = node;
+          return el.classList.contains("multi-select-pill") || ((_a = el.querySelector) == null ? void 0 : _a.call(el, ".multi-select-pill")) !== null;
+        })
+      );
+      if (hasPills)
+        processBaseView(rootEl);
+    });
+    observer.observe(rootEl, { childList: true, subtree: true });
+    return observer;
+  }
   // D3: load config, inject CSS, stamp pills, wire observer
   async activateLeaf(leaf) {
     const basePath = getBasePath(leaf);
@@ -832,20 +850,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     const config = await loadConfig(this.app, basePath);
     this.styles.setRulesForBase(basePath, config);
     processBaseView(rootEl);
-    const observer = new MutationObserver((mutations) => {
-      const hasPills = mutations.some(
-        (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
-          var _a;
-          if (node.nodeType !== Node.ELEMENT_NODE)
-            return false;
-          const el = node;
-          return el.classList.contains("multi-select-pill") || ((_a = el.querySelector) == null ? void 0 : _a.call(el, ".multi-select-pill")) !== null;
-        })
-      );
-      if (hasPills)
-        processBaseView(rootEl);
-    });
-    observer.observe(rootEl, { childList: true, subtree: true });
+    const observer = this.createPillObserver(rootEl);
     this.activeLeaves.set(leaf, { basePath, rootEl, observer });
   }
   deactivateLeaf(leaf) {
@@ -889,21 +894,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       if (freshRoot !== state.rootEl) {
         state.observer.disconnect();
         state.rootEl = freshRoot;
-        const obs = new MutationObserver((mutations) => {
-          const hasPills = mutations.some(
-            (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
-              var _a;
-              if (node.nodeType !== Node.ELEMENT_NODE)
-                return false;
-              const el = node;
-              return el.classList.contains("multi-select-pill") || ((_a = el.querySelector) == null ? void 0 : _a.call(el, ".multi-select-pill")) !== null;
-            })
-          );
-          if (hasPills)
-            processBaseView(freshRoot);
-        });
-        obs.observe(freshRoot, { childList: true, subtree: true });
-        state.observer = obs;
+        state.observer = this.createPillObserver(freshRoot);
       }
       processBaseView(state.rootEl);
     }
