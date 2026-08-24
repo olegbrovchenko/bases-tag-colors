@@ -66,7 +66,12 @@ export class StyleManager {
 			this.shapeRule =
 				`[data-bases-tag-colors-id] .multi-select-pill { ` +
 				`--pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; ` +
-				`padding: ${py}px ${px}px !important; border-radius: ${br}px !important; }`;
+				`padding: ${py}px ${px}px !important; border-radius: ${br}px !important; ` +
+				`align-items: center !important; }\n` +
+				// line-height:1 kills the descender-reserve gap that makes caps-only
+				// values look pushed toward the top of the pill
+				`[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { ` +
+				`line-height: 1 !important; }`;
 		}
 		this.rebuild();
 	}

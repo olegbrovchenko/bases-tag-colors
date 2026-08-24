@@ -211,7 +211,8 @@ var StyleManager = class {
       const px = Math.round(shape.paddingX);
       const py = Math.round(shape.paddingY);
       const br = Math.round(shape.borderRadius);
-      this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; }`;
+      this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; align-items: center !important; }
+[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { line-height: 1 !important; }`;
     }
     this.rebuild();
   }
