@@ -212,7 +212,9 @@ var StyleManager = class {
       const py = Math.round(shape.paddingY);
       const br = Math.round(shape.borderRadius);
       this.shapeRule = `[data-bases-tag-colors-id] .multi-select-pill { --pill-padding-x: ${px}px; --pill-padding-y: ${py}px; --pill-radius: ${br}px; padding: ${py}px ${px}px !important; border-radius: ${br}px !important; align-items: center !important; }
-[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { line-height: 1 !important; }`;
+[data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { line-height: 1 !important; }
+@supports (text-box: trim-both cap alphabetic) { [data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { text-box: trim-both cap alphabetic; } }
+@supports not (text-box: trim-both cap alphabetic) { [data-bases-tag-colors-id] .multi-select-pill .multi-select-pill-content { transform: translateY(0.07em); } }`;
     }
     this.rebuild();
   }
