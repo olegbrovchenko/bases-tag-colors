@@ -1,5 +1,5 @@
-import { ColorConfig, PillShapeSettings } from './types';
-import { sanitizeValue } from './config-io';
+import { ColorConfig, PluginSettings } from './types';
+import { sanitizeValue, generateColorFromText } from './config-io';
 
 const STYLE_ID = 'bases-tag-colors-style';
 
@@ -23,9 +23,18 @@ function textColorFor(color: string): string {
 	return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#1e1e1e' : 'white';
 }
 
+// Only " and \ need escaping inside a quoted CSS attribute string.
+// CSS.escape() is for unquoted selectors and would wrongly escape "/" and "." in paths.
+function escapeAttr(value: string): string {
+	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 export class StyleManager {
 	private styleEl: HTMLStyleElement;
 	private rulesByBase: Map<string, string[]> = new Map();
+	// basePath → (sanitized value → generated color); rebuilt into rules BEFORE
+	// the configured rules so a configured color always wins at equal specificity
+	private autoColorsByBase: Map<string, Map<string, string>> = new Map();
 	private shapeRule: string = '';
 
 	constructor() {
@@ -45,9 +54,7 @@ export class StyleManager {
 
 	setRulesForBase(basePath: string, config: ColorConfig): void {
 		const rules: string[] = [];
-		// Only need to escape " and \ inside a quoted CSS string attribute value.
-		// CSS.escape() is for unquoted selectors and would wrongly escape "/" and "." in paths.
-		const escapedPath = basePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+		const escapedPath = escapeAttr(basePath);
 
 		for (const [col, colorMap] of Object.entries(config.columns)) {
 			if (typeof colorMap !== 'object' || colorMap === null) continue;
@@ -64,7 +71,7 @@ export class StyleManager {
 						`[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
 					);
 				} else {
-					const escapedCol = col.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+					const escapedCol = escapeAttr(col);
 					rules.push(
 						`[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
 					);
@@ -80,7 +87,7 @@ export class StyleManager {
 	// tagged bases views so rows stay uniform whether or not a pill is colored.
 	// Sets Obsidian's --pill-* variables AND the properties directly, so it wins
 	// against both var-based and hardcoded theme styles.
-	setShape(shape: PillShapeSettings): void {
+	setShape(shape: PluginSettings): void {
 		if (!shape.customShape) {
 			this.shapeRule = '';
 		} else {
@@ -108,6 +115,30 @@ export class StyleManager {
 
 	clearRulesForBase(basePath: string): void {
 		this.rulesByBase.delete(basePath);
+		this.autoColorsByBase.delete(basePath);
+		this.rebuild();
+	}
+
+	// Register newly-seen pill values for a base; generates a stable hash color
+	// for each. No-ops (no rebuild) when nothing new appeared.
+	addAutoValuesForBase(basePath: string, sanitizedValues: string[]): void {
+		let colors = this.autoColorsByBase.get(basePath);
+		if (!colors) {
+			colors = new Map();
+			this.autoColorsByBase.set(basePath, colors);
+		}
+		let changed = false;
+		for (const v of sanitizedValues) {
+			if (!colors.has(v)) {
+				colors.set(v, generateColorFromText(v));
+				changed = true;
+			}
+		}
+		if (changed) this.rebuild();
+	}
+
+	clearAllAutoColors(): void {
+		this.autoColorsByBase.clear();
 		this.rebuild();
 	}
 
@@ -119,6 +150,16 @@ export class StyleManager {
 	private rebuild(): void {
 		const all: string[] = [];
 		if (this.shapeRule) all.push(this.shapeRule);
+		// Auto rules first: configured rules follow and win ties by source order
+		// (sanitized values are \w-only, safe in a quoted attribute selector)
+		for (const [basePath, colors] of this.autoColorsByBase.entries()) {
+			const escapedPath = escapeAttr(basePath);
+			for (const [value, color] of colors.entries()) {
+				all.push(
+					`[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${value}"] { background-color: ${color} !important; color: ${textColorFor(color)}; }`
+				);
+			}
+		}
 		for (const rules of this.rulesByBase.values()) all.push(...rules);
 		this.styleEl.textContent = all.join('\n');
 	}

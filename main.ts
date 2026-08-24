@@ -10,7 +10,7 @@ import {
 	cmdMigrateFromOldPlugin,
 } from './src/commands';
 import { BasesTagColorsSettingTab } from './src/settings-tab';
-import { DEFAULT_PILL_SHAPE, PillShapeSettings } from './src/types';
+import { DEFAULT_SETTINGS, PluginSettings } from './src/types';
 
 interface LeafState {
 	basePath: string;
@@ -23,18 +23,19 @@ export default class BasesTagColorsPlugin extends Plugin {
 	private activeLeaves: Map<WorkspaceLeaf, LeafState> = new Map();
 	private layoutDebounce: number | null = null;
 	private colorsModifyDebounce: Map<string, number> = new Map();
-	shape: PillShapeSettings = { ...DEFAULT_PILL_SHAPE };
+	settings: PluginSettings = { ...DEFAULT_SETTINGS };
 
 	async onload() {
 		this.styles = new StyleManager();
-		const stored = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+		const stored = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 		// Guard against a hand-edited/corrupted data.json feeding NaN into sliders + CSS
 		for (const key of ['paddingX', 'paddingY', 'borderRadius'] as const) {
-			if (!Number.isFinite(stored[key])) stored[key] = DEFAULT_PILL_SHAPE[key];
+			if (!Number.isFinite(stored[key])) stored[key] = DEFAULT_SETTINGS[key];
 		}
 		stored.customShape = !!stored.customShape;
-		this.shape = stored;
-		this.styles.setShape(this.shape);
+		stored.autoColor = !!stored.autoColor;
+		this.settings = stored;
+		this.styles.setShape(this.settings);
 
 		// B1/B2 + D3/D4: activate leaf when it becomes active
 		this.registerEvent(
@@ -108,7 +109,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 	}
 
 	// Watch a view root for virtualised rows adding pills, re-stamp when they appear
-	private createPillObserver(rootEl: HTMLElement): MutationObserver {
+	private createPillObserver(rootEl: HTMLElement, basePath: string): MutationObserver {
 		const observer = new MutationObserver((mutations) => {
 			const hasPills = mutations.some(m =>
 				m.type === 'childList' &&
@@ -119,7 +120,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 						el.querySelector?.('.multi-select-pill') !== null;
 				})
 			);
-			if (hasPills) processBaseView(rootEl);
+			if (hasPills) this.refreshView(rootEl, basePath);
 		});
 		observer.observe(rootEl, { childList: true, subtree: true });
 		return observer;
@@ -154,10 +155,10 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (raced && raced.basePath === basePath) return;
 
 		this.styles.setRulesForBase(basePath, config);
-		processBaseView(rootEl);
+		this.refreshView(rootEl, basePath);
 
 		// D4: MutationObserver for virtualised rows
-		const observer = this.createPillObserver(rootEl);
+		const observer = this.createPillObserver(rootEl, basePath);
 
 		this.activeLeaves.set(leaf, { basePath, rootEl, observer });
 	}
@@ -211,20 +212,40 @@ export default class BasesTagColorsPlugin extends Plugin {
 				// DOM was refreshed — reconnect MutationObserver to new element
 				state.observer.disconnect();
 				state.rootEl = freshRoot;
-				state.observer = this.createPillObserver(freshRoot);
+				state.observer = this.createPillObserver(freshRoot, basePath);
 			}
-			processBaseView(state.rootEl);
+			this.refreshView(state.rootEl, basePath);
 		}
 	}
 
 	// Apply the current shape to open views without touching disk (live slider feedback)
 	applyShape(): void {
-		this.styles.setShape(this.shape);
+		this.styles.setShape(this.settings);
 	}
 
-	async saveShape(): Promise<void> {
-		await this.saveData(this.shape);
-		this.styles.setShape(this.shape);
+	async saveSettings(): Promise<void> {
+		await this.saveData(this.settings);
+		this.styles.setShape(this.settings);
+	}
+
+	// Called when the auto-color toggle flips: drop generated rules, re-collect
+	// from every active view (collection is a no-op while the toggle is off)
+	applyAutoColorToggle(): void {
+		if (!this.settings.autoColor) {
+			this.styles.clearAllAutoColors();
+			return;
+		}
+		for (const state of this.activeLeaves.values()) {
+			this.refreshView(state.rootEl, state.basePath);
+		}
+	}
+
+	// Stamp pills and, when enabled, register their values for auto colors
+	private refreshView(rootEl: HTMLElement, basePath: string): void {
+		const values = processBaseView(rootEl);
+		if (this.settings.autoColor) {
+			this.styles.addAutoValuesForBase(basePath, values);
+		}
 	}
 
 	onunload() {

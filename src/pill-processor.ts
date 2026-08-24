@@ -2,7 +2,9 @@ import { sanitizeValue } from './config-io';
 
 // Walks all .multi-select-pill elements inside viewRoot, stamps data-blc-value + data-blc-col.
 // Idempotent: safe to call multiple times on the same DOM.
-export function processBaseView(viewRoot: HTMLElement): void {
+// Returns the sanitized values it stamped, for auto-color rule generation.
+export function processBaseView(viewRoot: HTMLElement): string[] {
+	const values: string[] = [];
 	viewRoot.querySelectorAll<HTMLElement>('.multi-select-pill').forEach(pill => {
 		const contentEl = pill.querySelector('.multi-select-pill-content');
 		const rawText = (contentEl?.textContent ?? pill.textContent ?? '').trim();
@@ -12,6 +14,7 @@ export function processBaseView(viewRoot: HTMLElement): void {
 		if (!sanitized) return;
 
 		pill.setAttribute('data-blc-value', sanitized);
+		values.push(sanitized);
 
 		const tdEl = pill.closest('[data-property]') as HTMLElement | null;
 		const col = tdEl?.getAttribute('data-property');
@@ -19,4 +22,5 @@ export function processBaseView(viewRoot: HTMLElement): void {
 			pill.setAttribute('data-blc-col', col);
 		}
 	});
+	return values;
 }

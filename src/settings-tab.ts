@@ -26,7 +26,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			window.clearTimeout(this.shapeSaveTimer);
 			this.shapeSaveTimer = null;
 			// Flush the pending write so a slider tweak right before closing isn't lost
-			this.plugin.saveShape();
+			this.plugin.saveSettings();
 		}
 	}
 
@@ -67,6 +67,19 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		// Pill shape (global appearance)
 		containerEl.createEl('div', { text: 'Pill shape', cls: 'blc-section-label' });
 		this.buildShapeSection(containerEl, listEl);
+
+		// Auto color (global)
+		containerEl.createEl('div', { text: 'Auto color', cls: 'blc-section-label' });
+		new Setting(containerEl)
+			.setName('Auto-color unconfigured values')
+			.setDesc('Values without a configured color get a consistent generated one. Your configured colors always win.')
+			.addToggle(t => t
+				.setValue(this.plugin.settings.autoColor)
+				.onChange(async (v) => {
+					this.plugin.settings.autoColor = v;
+					await this.plugin.saveSettings();
+					this.plugin.applyAutoColorToggle();
+				}));
 
 		// Populate base selector
 		const bases = await listBasesInVault(this.app);
@@ -184,7 +197,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 	// and mirrored on the pill previews in the color list above.
 	// Sliders fire per drag tick — styles apply immediately, disk write is debounced.
 	private buildShapeSection(containerEl: HTMLElement, listEl: HTMLElement): void {
-		const shape = this.plugin.shape;
+		const shape = this.plugin.settings;
 
 		new Setting(containerEl)
 			.setName('Customize pill shape')
@@ -193,7 +206,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 				.setValue(shape.customShape)
 				.onChange(async (v) => {
 					shape.customShape = v;
-					await this.plugin.saveShape();
+					await this.plugin.saveSettings();
 					renderSliders();
 					this.applyPreviewShape(listEl);
 				}));
@@ -235,12 +248,12 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		if (this.shapeSaveTimer !== null) window.clearTimeout(this.shapeSaveTimer);
 		this.shapeSaveTimer = window.setTimeout(() => {
 			this.shapeSaveTimer = null;
-			this.plugin.saveShape();
+			this.plugin.saveSettings();
 		}, 150);
 	}
 
 	private applyPreviewShape(listEl: HTMLElement): void {
-		const shape = this.plugin.shape;
+		const shape = this.plugin.settings;
 		listEl.querySelectorAll<HTMLElement>('.blc-pill-preview').forEach(el => {
 			if (shape.customShape) {
 				el.style.padding = `${shape.paddingY}px ${shape.paddingX}px`;

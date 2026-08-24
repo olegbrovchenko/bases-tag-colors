@@ -64,11 +64,12 @@ var DEFAULT_COLOR_CONFIG = {
   version: 1,
   columns: {}
 };
-var DEFAULT_PILL_SHAPE = {
+var DEFAULT_SETTINGS = {
   customShape: true,
   paddingX: 6,
   paddingY: 2,
-  borderRadius: 4
+  borderRadius: 4,
+  autoColor: true
 };
 
 // src/config-io.ts
@@ -179,9 +180,15 @@ function textColorFor(color) {
   }
   return (r * 299 + g * 587 + b * 114) / 1e3 >= 150 ? "#1e1e1e" : "white";
 }
+function escapeAttr(value) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
 var StyleManager = class {
   constructor() {
     this.rulesByBase = /* @__PURE__ */ new Map();
+    // basePath → (sanitized value → generated color); rebuilt into rules BEFORE
+    // the configured rules so a configured color always wins at equal specificity
+    this.autoColorsByBase = /* @__PURE__ */ new Map();
     this.shapeRule = "";
     this.styleEl = this.getOrCreate();
   }
@@ -197,7 +204,7 @@ var StyleManager = class {
   }
   setRulesForBase(basePath, config) {
     const rules = [];
-    const escapedPath = basePath.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const escapedPath = escapeAttr(basePath);
     for (const [col, colorMap] of Object.entries(config.columns)) {
       if (typeof colorMap !== "object" || colorMap === null)
         continue;
@@ -213,7 +220,7 @@ var StyleManager = class {
             `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
           );
         } else {
-          const escapedCol = col.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          const escapedCol = escapeAttr(col);
           rules.push(
             `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-col="${escapedCol}"][data-blc-value="${sanitized}"] { background-color: ${color} !important; color: ${fg}; }`
           );
@@ -241,6 +248,29 @@ var StyleManager = class {
   }
   clearRulesForBase(basePath) {
     this.rulesByBase.delete(basePath);
+    this.autoColorsByBase.delete(basePath);
+    this.rebuild();
+  }
+  // Register newly-seen pill values for a base; generates a stable hash color
+  // for each. No-ops (no rebuild) when nothing new appeared.
+  addAutoValuesForBase(basePath, sanitizedValues) {
+    let colors = this.autoColorsByBase.get(basePath);
+    if (!colors) {
+      colors = /* @__PURE__ */ new Map();
+      this.autoColorsByBase.set(basePath, colors);
+    }
+    let changed = false;
+    for (const v of sanitizedValues) {
+      if (!colors.has(v)) {
+        colors.set(v, generateColorFromText(v));
+        changed = true;
+      }
+    }
+    if (changed)
+      this.rebuild();
+  }
+  clearAllAutoColors() {
+    this.autoColorsByBase.clear();
     this.rebuild();
   }
   clearAll() {
@@ -251,6 +281,14 @@ var StyleManager = class {
     const all = [];
     if (this.shapeRule)
       all.push(this.shapeRule);
+    for (const [basePath, colors] of this.autoColorsByBase.entries()) {
+      const escapedPath = escapeAttr(basePath);
+      for (const [value, color] of colors.entries()) {
+        all.push(
+          `[data-bases-tag-colors-id="${escapedPath}"] .multi-select-pill[data-blc-value="${value}"] { background-color: ${color} !important; color: ${textColorFor(color)}; }`
+        );
+      }
+    }
     for (const rules of this.rulesByBase.values())
       all.push(...rules);
     this.styleEl.textContent = all.join("\n");
@@ -263,6 +301,7 @@ var StyleManager = class {
 
 // src/pill-processor.ts
 function processBaseView(viewRoot) {
+  const values = [];
   viewRoot.querySelectorAll(".multi-select-pill").forEach((pill) => {
     var _a, _b;
     const contentEl = pill.querySelector(".multi-select-pill-content");
@@ -273,12 +312,14 @@ function processBaseView(viewRoot) {
     if (!sanitized)
       return;
     pill.setAttribute("data-blc-value", sanitized);
+    values.push(sanitized);
     const tdEl = pill.closest("[data-property]");
     const col = tdEl == null ? void 0 : tdEl.getAttribute("data-property");
     if (col) {
       pill.setAttribute("data-blc-col", col);
     }
   });
+  return values;
 }
 
 // src/commands.ts
@@ -437,7 +478,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     if (this.shapeSaveTimer !== null) {
       window.clearTimeout(this.shapeSaveTimer);
       this.shapeSaveTimer = null;
-      this.plugin.saveShape();
+      this.plugin.saveSettings();
     }
   }
   async display() {
@@ -466,6 +507,12 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     this.buildAddRow(addRowEl, listEl);
     containerEl.createEl("div", { text: "Pill shape", cls: "blc-section-label" });
     this.buildShapeSection(containerEl, listEl);
+    containerEl.createEl("div", { text: "Auto color", cls: "blc-section-label" });
+    new import_obsidian2.Setting(containerEl).setName("Auto-color unconfigured values").setDesc("Values without a configured color get a consistent generated one. Your configured colors always win.").addToggle((t) => t.setValue(this.plugin.settings.autoColor).onChange(async (v) => {
+      this.plugin.settings.autoColor = v;
+      await this.plugin.saveSettings();
+      this.plugin.applyAutoColorToggle();
+    }));
     const bases = await listBasesInVault(this.app);
     if (bases.length === 0) {
       select.createEl("option", { text: "No .base files found", value: "" });
@@ -564,10 +611,10 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
   // and mirrored on the pill previews in the color list above.
   // Sliders fire per drag tick — styles apply immediately, disk write is debounced.
   buildShapeSection(containerEl, listEl) {
-    const shape = this.plugin.shape;
+    const shape = this.plugin.settings;
     new import_obsidian2.Setting(containerEl).setName("Customize pill shape").setDesc("Notion-style pill shape for Bases views: comfortable padding, mid-hard corners. Turn off to use your theme's default shape.").addToggle((t) => t.setValue(shape.customShape).onChange(async (v) => {
       shape.customShape = v;
-      await this.plugin.saveShape();
+      await this.plugin.saveSettings();
       renderSliders();
       this.applyPreviewShape(listEl);
     }));
@@ -598,11 +645,11 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       window.clearTimeout(this.shapeSaveTimer);
     this.shapeSaveTimer = window.setTimeout(() => {
       this.shapeSaveTimer = null;
-      this.plugin.saveShape();
+      this.plugin.saveSettings();
     }, 150);
   }
   applyPreviewShape(listEl) {
-    const shape = this.plugin.shape;
+    const shape = this.plugin.settings;
     listEl.querySelectorAll(".blc-pill-preview").forEach((el) => {
       if (shape.customShape) {
         el.style.padding = `${shape.paddingY}px ${shape.paddingX}px`;
@@ -776,18 +823,19 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.activeLeaves = /* @__PURE__ */ new Map();
     this.layoutDebounce = null;
     this.colorsModifyDebounce = /* @__PURE__ */ new Map();
-    this.shape = { ...DEFAULT_PILL_SHAPE };
+    this.settings = { ...DEFAULT_SETTINGS };
   }
   async onload() {
     this.styles = new StyleManager();
-    const stored = Object.assign({}, DEFAULT_PILL_SHAPE, await this.loadData());
+    const stored = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     for (const key of ["paddingX", "paddingY", "borderRadius"]) {
       if (!Number.isFinite(stored[key]))
-        stored[key] = DEFAULT_PILL_SHAPE[key];
+        stored[key] = DEFAULT_SETTINGS[key];
     }
     stored.customShape = !!stored.customShape;
-    this.shape = stored;
-    this.styles.setShape(this.shape);
+    stored.autoColor = !!stored.autoColor;
+    this.settings = stored;
+    this.styles.setShape(this.settings);
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         var _a;
@@ -849,7 +897,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.app.workspace.onLayoutReady(() => this.syncLeaves());
   }
   // Watch a view root for virtualised rows adding pills, re-stamp when they appear
-  createPillObserver(rootEl) {
+  createPillObserver(rootEl, basePath) {
     const observer = new MutationObserver((mutations) => {
       const hasPills = mutations.some(
         (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
@@ -861,7 +909,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
         })
       );
       if (hasPills)
-        processBaseView(rootEl);
+        this.refreshView(rootEl, basePath);
     });
     observer.observe(rootEl, { childList: true, subtree: true });
     return observer;
@@ -888,8 +936,8 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (raced && raced.basePath === basePath)
       return;
     this.styles.setRulesForBase(basePath, config);
-    processBaseView(rootEl);
-    const observer = this.createPillObserver(rootEl);
+    this.refreshView(rootEl, basePath);
+    const observer = this.createPillObserver(rootEl, basePath);
     this.activeLeaves.set(leaf, { basePath, rootEl, observer });
   }
   deactivateLeaf(leaf) {
@@ -933,18 +981,36 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       if (freshRoot !== state.rootEl) {
         state.observer.disconnect();
         state.rootEl = freshRoot;
-        state.observer = this.createPillObserver(freshRoot);
+        state.observer = this.createPillObserver(freshRoot, basePath);
       }
-      processBaseView(state.rootEl);
+      this.refreshView(state.rootEl, basePath);
     }
   }
   // Apply the current shape to open views without touching disk (live slider feedback)
   applyShape() {
-    this.styles.setShape(this.shape);
+    this.styles.setShape(this.settings);
   }
-  async saveShape() {
-    await this.saveData(this.shape);
-    this.styles.setShape(this.shape);
+  async saveSettings() {
+    await this.saveData(this.settings);
+    this.styles.setShape(this.settings);
+  }
+  // Called when the auto-color toggle flips: drop generated rules, re-collect
+  // from every active view (collection is a no-op while the toggle is off)
+  applyAutoColorToggle() {
+    if (!this.settings.autoColor) {
+      this.styles.clearAllAutoColors();
+      return;
+    }
+    for (const state of this.activeLeaves.values()) {
+      this.refreshView(state.rootEl, state.basePath);
+    }
+  }
+  // Stamp pills and, when enabled, register their values for auto colors
+  refreshView(rootEl, basePath) {
+    const values = processBaseView(rootEl);
+    if (this.settings.autoColor) {
+      this.styles.addAutoValuesForBase(basePath, values);
+    }
   }
   onunload() {
     if (this.layoutDebounce !== null) {

@@ -14,20 +14,22 @@ export const DEFAULT_COLOR_CONFIG: ColorConfig = {
 	columns: {}
 };
 
-// Global (per-vault) appearance settings, stored in the plugin's data.json —
+// Global (per-vault) settings, stored in the plugin's data.json —
 // not in .colors.json, which stays per-base color data only.
-export interface PillShapeSettings {
+export interface PluginSettings {
 	customShape: boolean;
 	paddingX: number;
 	paddingY: number;
 	borderRadius: number;
+	autoColor: boolean;
 }
 
-// Defaults mirror the original Notion-style design snippet the plugin was
-// built alongside: text never touches the corners, mid-hard 4px radius.
-export const DEFAULT_PILL_SHAPE: PillShapeSettings = {
+// Shape defaults mirror the original Notion-style design snippet the plugin
+// was built alongside: text never touches the corners, mid-hard 4px radius.
+export const DEFAULT_SETTINGS: PluginSettings = {
 	customShape: true,
 	paddingX: 6,
 	paddingY: 2,
 	borderRadius: 4,
+	autoColor: true,
 };
