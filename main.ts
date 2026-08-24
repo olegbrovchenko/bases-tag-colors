@@ -247,6 +247,9 @@ export default class BasesTagColorsPlugin extends Plugin {
 		for (const state of this.activeLeaves.values()) {
 			this.refreshView(state.rootEl, state.basePath);
 		}
+		// Properties pills re-collect too — without this they stay uncolored
+		// after an off→on flip until some unrelated DOM mutation fires
+		if (this.settings.propertiesColor) this.processPropertyPills();
 	}
 
 	// Stamp pills and, when enabled, register their values for auto colors

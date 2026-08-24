@@ -235,8 +235,9 @@ var StyleManager = class {
     this.rebuild();
   }
   // Global pill shape (padding / border-radius), applied to ALL pills inside
-  // tagged bases views so rows stay uniform whether or not a pill is colored.
-  // Sets Obsidian's --pill-* variables AND the properties directly, so it wins
+  // tagged bases views — and the note Properties panel when that coloring is
+  // on — so rows stay uniform whether or not a pill is colored. Sets
+  // Obsidian's --pill-* variables AND the properties directly, so it wins
   // against both var-based and hardcoded theme styles.
   setShape(shape) {
     if (!shape.customShape) {
@@ -325,6 +326,10 @@ ${contentScopes} { line-height: 1 !important; }`;
   }
   clearAll() {
     this.rulesByBase.clear();
+    this.autoColorsByBase.clear();
+    this.propertyRules = [];
+    this.propertyAutoColors.clear();
+    this.shapeRule = "";
     this.styleEl.textContent = "";
   }
   rebuild() {
@@ -1074,6 +1079,8 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     for (const state of this.activeLeaves.values()) {
       this.refreshView(state.rootEl, state.basePath);
     }
+    if (this.settings.propertiesColor)
+      this.processPropertyPills();
   }
   // Stamp pills and, when enabled, register their values for auto colors
   refreshView(rootEl, basePath) {
