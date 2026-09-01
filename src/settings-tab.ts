@@ -207,6 +207,10 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-green' });
 		windowChrome.createEl('span', { text: 'YouTube Ideas.base', cls: 'blc-window-title' });
 		const img = windowFrame.createEl('img', { cls: 'blc-preview-img', attr: { alt: 'Bases Tag Colors in action' } });
+		// preview.png only exists in manual/dev installs — the community store ships
+		// just main.js/manifest.json/styles.css. Without it, drop the whole section
+		// instead of showing a broken image box.
+		img.onerror = () => previewSection.remove();
 		const pluginDir = (this.plugin.manifest as { dir?: string }).dir ?? '.obsidian/plugins/bases-tag-colors';
 		img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
 

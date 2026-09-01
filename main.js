@@ -735,6 +735,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     dotsWrap.createDiv({ cls: "blc-dot blc-dot-green" });
     windowChrome.createEl("span", { text: "YouTube Ideas.base", cls: "blc-window-title" });
     const img = windowFrame.createEl("img", { cls: "blc-preview-img", attr: { alt: "Bases Tag Colors in action" } });
+    img.onerror = () => previewSection.remove();
     const pluginDir = (_a = this.plugin.manifest.dir) != null ? _a : ".obsidian/plugins/bases-tag-colors";
     img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
     containerEl.createEl("p", { text: "Enjoy! \u2014 Oleg Brovchenko", cls: "blc-signoff" });
