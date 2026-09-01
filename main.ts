@@ -197,13 +197,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		state.observer.disconnect();
 
 		// Remove data-blc-* attrs and paint from all pills in this view
-		state.rootEl
-			.querySelectorAll<HTMLElement>('[data-blc-value], [data-blc-col]')
-			.forEach(el => {
-				this.styles.unpaintPill(el);
-				el.removeAttribute('data-blc-value');
-				el.removeAttribute('data-blc-col');
-			});
+		this.sweepPillAttrs(state.rootEl);
 
 		untagLeaf(leaf);
 		this.activeLeaves.delete(leaf);
@@ -214,7 +208,8 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (!stillOpen) this.styles.clearColorsForBase(state.basePath);
 	}
 
-	// Re-tag + re-apply all current bases leaves; clean up closed ones
+	// Re-tag + re-apply all current bases leaves and markdown leaves (for
+	// their embedded bases); clean up closed ones
 	private syncLeaves(): void {
 		const current = new Set(this.app.workspace.getLeavesOfType('bases'));
 
@@ -277,18 +272,22 @@ export default class BasesTagColorsPlugin extends Plugin {
 		// bases activation just wrote. The old markdown DOM is discarded anyway.
 		const containerEl = leaf.view instanceof MarkdownView ? leaf.view.containerEl : null;
 		if (containerEl) {
-			containerEl
-				.querySelectorAll<HTMLElement>('[data-blc-value], [data-blc-col]')
-				.forEach(el => {
-					this.styles.unpaintPill(el);
-					el.removeAttribute('data-blc-value');
-					el.removeAttribute('data-blc-col');
-				});
+			this.sweepPillAttrs(containerEl);
 			containerEl
 				.querySelectorAll('[data-bases-tag-colors-id]')
 				.forEach(el => el.removeAttribute('data-bases-tag-colors-id'));
 		}
 		this.embedLeaves.delete(leaf);
+	}
+
+	// Unpaint + unstamp every pill under root (leaf teardown for both leaf kinds)
+	private sweepPillAttrs(root: ParentNode): void {
+		root.querySelectorAll<HTMLElement>('[data-blc-value], [data-blc-col]')
+			.forEach(el => {
+				this.styles.unpaintPill(el);
+				el.removeAttribute('data-blc-value');
+				el.removeAttribute('data-blc-col');
+			});
 	}
 
 	// Tag every embed in the leaf, load config for bases seen the first time,

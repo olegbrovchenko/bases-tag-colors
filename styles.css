@@ -34,6 +34,9 @@ body.blc-shape.blc-shape-props .metadata-property .multi-select-pill .multi-sele
 }
 
 /* ── Settings panel ── */
+/* Both classes on purpose: bare .blc-row-hidden ties with .blc-row
+   { display: flex } below and loses on source order (the v1.3.1 dead-search
+   bug). Do not simplify this selector. */
 .blc-row.blc-row-hidden {
 	display: none;
 }

@@ -1099,18 +1099,15 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (!state)
       return;
     state.observer.disconnect();
-    state.rootEl.querySelectorAll("[data-blc-value], [data-blc-col]").forEach((el) => {
-      this.styles.unpaintPill(el);
-      el.removeAttribute("data-blc-value");
-      el.removeAttribute("data-blc-col");
-    });
+    this.sweepPillAttrs(state.rootEl);
     untagLeaf(leaf);
     this.activeLeaves.delete(leaf);
     const stillOpen = [...this.activeLeaves.values()].some((s) => s.basePath === state.basePath) || this.embedBasePaths.has(state.basePath);
     if (!stillOpen)
       this.styles.clearColorsForBase(state.basePath);
   }
-  // Re-tag + re-apply all current bases leaves; clean up closed ones
+  // Re-tag + re-apply all current bases leaves and markdown leaves (for
+  // their embedded bases); clean up closed ones
   syncLeaves() {
     const current = new Set(this.app.workspace.getLeavesOfType("bases"));
     for (const leaf of [...this.activeLeaves.keys()]) {
@@ -1163,14 +1160,18 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     state.observer.disconnect();
     const containerEl = leaf.view instanceof import_obsidian3.MarkdownView ? leaf.view.containerEl : null;
     if (containerEl) {
-      containerEl.querySelectorAll("[data-blc-value], [data-blc-col]").forEach((el) => {
-        this.styles.unpaintPill(el);
-        el.removeAttribute("data-blc-value");
-        el.removeAttribute("data-blc-col");
-      });
+      this.sweepPillAttrs(containerEl);
       containerEl.querySelectorAll("[data-bases-tag-colors-id]").forEach((el) => el.removeAttribute("data-bases-tag-colors-id"));
     }
     this.embedLeaves.delete(leaf);
+  }
+  // Unpaint + unstamp every pill under root (leaf teardown for both leaf kinds)
+  sweepPillAttrs(root) {
+    root.querySelectorAll("[data-blc-value], [data-blc-col]").forEach((el) => {
+      this.styles.unpaintPill(el);
+      el.removeAttribute("data-blc-value");
+      el.removeAttribute("data-blc-col");
+    });
   }
   // Tag every embed in the leaf, load config for bases seen the first time,
   // then stamp + paint. Keyed by base path, so the standalone view, split
