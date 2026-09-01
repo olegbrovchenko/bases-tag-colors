@@ -1,7 +1,7 @@
 {
   "id": "bases-tag-colors",
   "name": "Bases Tag Colors",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "minAppVersion": "1.8.0",
   "description": "Colored tags for Bases and note Properties: auto-color every value, Notion-style pills, per-base palettes. No global tag soup.",
   "author": "Oleg Brovchenko",

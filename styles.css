@@ -34,7 +34,7 @@ body.blc-shape.blc-shape-props .metadata-property .multi-select-pill .multi-sele
 }
 
 /* ── Settings panel ── */
-.blc-row-hidden {
+.blc-row.blc-row-hidden {
 	display: none;
 }
 
