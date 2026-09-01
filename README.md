@@ -15,6 +15,7 @@ Obsidian Bases has zero native pill colors. Bases Tag Colors fixes that: colored
 - **Visual settings UI** - color picker, hex input, search bar, one-click import of all visible values. No manual JSON editing
 - **Notion-style pill shape** - comfortable padding, mid-hard corners, with sliders for padding and corner radius. Toggle off to keep your theme's shape
 - **Colors in note Properties too** - the same values get the same colors and shape in the Properties panel at the top of notes
+- **Embedded bases too** - a base embedded in a note via `![[Base.base]]` gets the same colors as its standalone tab, in both editing and reading view
 - **Readable text on any color** - text flips between white and dark automatically based on the background's brightness
 - **Live in 100ms** - move a slider or edit a color, every open view repaints in real time
 
@@ -107,7 +108,6 @@ Rollback: disable this plugin → all applied colors and DOM changes revert auto
 ## Known limitations
 
 - Single-value (non-array) cells not colored
-- No embedded base support (`![[Base.base]]`)
 
 ---
 

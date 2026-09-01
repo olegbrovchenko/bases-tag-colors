@@ -59,6 +59,35 @@ function untagLeaf(leaf) {
   containerEl.removeAttribute("data-bases-tag-colors-id");
 }
 
+// src/embed-view.ts
+var EMBED_SELECTOR = ".internal-embed.bases-embed";
+function containsBasesEmbed(el) {
+  var _a, _b;
+  return !!(((_a = el.matches) == null ? void 0 : _a.call(el, EMBED_SELECTOR)) || ((_b = el.querySelector) == null ? void 0 : _b.call(el, EMBED_SELECTOR)));
+}
+function tagEmbeds(app, containerEl, sourcePath) {
+  const roots = /* @__PURE__ */ new Map();
+  containerEl.querySelectorAll(EMBED_SELECTOR).forEach((embedEl) => {
+    var _a;
+    const src = embedEl.getAttribute("src");
+    if (!src)
+      return;
+    const linkpath = src.split("#")[0];
+    const file = app.metadataCache.getFirstLinkpathDest(linkpath, sourcePath);
+    if (!file)
+      return;
+    const rootEl = (_a = embedEl.querySelector(".bases-view")) != null ? _a : embedEl;
+    rootEl.setAttribute("data-bases-tag-colors-id", file.path);
+    const list = roots.get(file.path);
+    if (list) {
+      list.push(rootEl);
+    } else {
+      roots.set(file.path, [rootEl]);
+    }
+  });
+  return roots;
+}
+
 // src/types.ts
 var DEFAULT_COLOR_CONFIG = {
   version: 1,
@@ -932,10 +961,20 @@ function mutationsAddPills(mutations) {
     })
   );
 }
+function mutationsAddBasesEmbeds(mutations) {
+  return mutations.some(
+    (m) => m.type === "childList" && Array.from(m.addedNodes).some(
+      (node) => node.nodeType === Node.ELEMENT_NODE && containsBasesEmbed(node)
+    )
+  );
+}
 var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   constructor() {
     super(...arguments);
     this.activeLeaves = /* @__PURE__ */ new Map();
+    this.embedLeaves = /* @__PURE__ */ new Map();
+    // Base paths whose colors were loaded because an embed shows them
+    this.embedBasePaths = /* @__PURE__ */ new Set();
     this.layoutDebounce = null;
     this.colorsModifyDebounce = /* @__PURE__ */ new Map();
     this.propsObserver = null;
@@ -960,6 +999,8 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
           return;
         if (((_a = leaf.view) == null ? void 0 : _a.getViewType()) === "bases") {
           this.activateLeaf(leaf);
+        } else if (leaf.view instanceof import_obsidian3.MarkdownView) {
+          this.activateEmbedLeaf(leaf);
         }
       })
     );
@@ -1065,7 +1106,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     });
     untagLeaf(leaf);
     this.activeLeaves.delete(leaf);
-    const stillOpen = [...this.activeLeaves.values()].some((s) => s.basePath === state.basePath);
+    const stillOpen = [...this.activeLeaves.values()].some((s) => s.basePath === state.basePath) || this.embedBasePaths.has(state.basePath);
     if (!stillOpen)
       this.styles.clearColorsForBase(state.basePath);
   }
@@ -1079,6 +1120,96 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     for (const leaf of current) {
       if (!this.activeLeaves.has(leaf))
         this.activateLeaf(leaf);
+    }
+    const mdCurrent = new Set(this.app.workspace.getLeavesOfType("markdown"));
+    for (const leaf of [...this.embedLeaves.keys()]) {
+      if (!mdCurrent.has(leaf))
+        this.deactivateEmbedLeaf(leaf);
+    }
+    for (const leaf of mdCurrent) {
+      if (this.embedLeaves.has(leaf)) {
+        this.refreshEmbedLeaf(leaf);
+      } else {
+        this.activateEmbedLeaf(leaf);
+      }
+    }
+    this.pruneEmbedBasePaths();
+  }
+  // ── Embedded bases (![[Something.base]] inside notes) ────────────────
+  // Every markdown leaf gets an observer: embeds render lazily on scroll and
+  // appear when the user types one, so watching only leaves that currently
+  // hold an embed would miss both.
+  activateEmbedLeaf(leaf) {
+    if (this.embedLeaves.has(leaf)) {
+      this.refreshEmbedLeaf(leaf);
+      return;
+    }
+    const view = leaf.view;
+    if (!(view instanceof import_obsidian3.MarkdownView))
+      return;
+    const observer = new MutationObserver((mutations) => {
+      if (mutationsAddPills(mutations) || mutationsAddBasesEmbeds(mutations)) {
+        this.refreshEmbedLeaf(leaf);
+      }
+    });
+    observer.observe(view.containerEl, { childList: true, subtree: true });
+    this.embedLeaves.set(leaf, { observer });
+    this.refreshEmbedLeaf(leaf);
+  }
+  deactivateEmbedLeaf(leaf) {
+    const state = this.embedLeaves.get(leaf);
+    if (!state)
+      return;
+    state.observer.disconnect();
+    const containerEl = leaf.view instanceof import_obsidian3.MarkdownView ? leaf.view.containerEl : null;
+    if (containerEl) {
+      containerEl.querySelectorAll("[data-blc-value], [data-blc-col]").forEach((el) => {
+        this.styles.unpaintPill(el);
+        el.removeAttribute("data-blc-value");
+        el.removeAttribute("data-blc-col");
+      });
+      containerEl.querySelectorAll("[data-bases-tag-colors-id]").forEach((el) => el.removeAttribute("data-bases-tag-colors-id"));
+    }
+    this.embedLeaves.delete(leaf);
+  }
+  // Tag every embed in the leaf, load config for bases seen the first time,
+  // then stamp + paint. Keyed by base path, so the standalone view, split
+  // panes and several embeds of one base all share the same colors.
+  async refreshEmbedLeaf(leaf) {
+    const view = leaf.view;
+    if (!(view instanceof import_obsidian3.MarkdownView) || !view.file)
+      return;
+    const roots = tagEmbeds(this.app, view.containerEl, view.file.path);
+    for (const [basePath, rootEls] of roots.entries()) {
+      if (!this.embedBasePaths.has(basePath)) {
+        this.embedBasePaths.add(basePath);
+        const config = await loadConfig(this.app, basePath);
+        this.styles.setColorsForBase(basePath, config);
+      }
+      for (const rootEl of rootEls)
+        this.refreshView(rootEl, basePath);
+    }
+  }
+  // Drop stored colors for bases no longer shown by any embed or leaf
+  pruneEmbedBasePaths() {
+    const alive = /* @__PURE__ */ new Set();
+    for (const leaf of this.embedLeaves.keys()) {
+      const view = leaf.view;
+      if (!(view instanceof import_obsidian3.MarkdownView))
+        continue;
+      view.containerEl.querySelectorAll("[data-bases-tag-colors-id]").forEach((el) => {
+        const p = el.getAttribute("data-bases-tag-colors-id");
+        if (p)
+          alive.add(p);
+      });
+    }
+    for (const basePath of [...this.embedBasePaths]) {
+      if (alive.has(basePath))
+        continue;
+      this.embedBasePaths.delete(basePath);
+      const stillOpen = [...this.activeLeaves.values()].some((s) => s.basePath === basePath);
+      if (!stillOpen)
+        this.styles.clearColorsForBase(basePath);
     }
   }
   // D3: re-apply styles + re-process pills for all leaves showing basePath.
@@ -1118,6 +1249,8 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     for (const state of this.activeLeaves.values()) {
       this.refreshView(state.rootEl, state.basePath);
     }
+    for (const leaf of this.embedLeaves.keys())
+      this.refreshEmbedLeaf(leaf);
     if (this.settings.propertiesColor)
       this.processPropertyPills();
   }
@@ -1200,6 +1333,9 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     this.colorsModifyDebounce.clear();
     for (const leaf of [...this.activeLeaves.keys()])
       this.deactivateLeaf(leaf);
+    for (const leaf of [...this.embedLeaves.keys()])
+      this.deactivateEmbedLeaf(leaf);
+    this.embedBasePaths.clear();
     this.stopPropertiesColoring();
     this.styles.destroy();
   }

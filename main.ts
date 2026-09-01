@@ -1,5 +1,6 @@
-import { Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { MarkdownView, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
 import { getBasePath, tagLeaf, untagLeaf } from './src/base-view';
+import { containsBasesEmbed, tagEmbeds } from './src/embed-view';
 import { basePathFromColorsPath, loadConfig, sanitizeValue } from './src/config-io';
 import { StyleManager } from './src/style-manager';
 import { processBaseView } from './src/pill-processor';
@@ -18,6 +19,10 @@ interface LeafState {
 	observer: MutationObserver;
 }
 
+interface EmbedLeafState {
+	observer: MutationObserver;
+}
+
 function mutationsAddPills(mutations: MutationRecord[]): boolean {
 	return mutations.some(m =>
 		m.type === 'childList' &&
@@ -30,9 +35,21 @@ function mutationsAddPills(mutations: MutationRecord[]): boolean {
 	);
 }
 
+function mutationsAddBasesEmbeds(mutations: MutationRecord[]): boolean {
+	return mutations.some(m =>
+		m.type === 'childList' &&
+		Array.from(m.addedNodes).some(node =>
+			node.nodeType === Node.ELEMENT_NODE && containsBasesEmbed(node as HTMLElement)
+		)
+	);
+}
+
 export default class BasesTagColorsPlugin extends Plugin {
 	private styles!: StyleManager;
 	private activeLeaves: Map<WorkspaceLeaf, LeafState> = new Map();
+	private embedLeaves: Map<WorkspaceLeaf, EmbedLeafState> = new Map();
+	// Base paths whose colors were loaded because an embed shows them
+	private embedBasePaths: Set<string> = new Set();
 	private layoutDebounce: number | null = null;
 	private colorsModifyDebounce: Map<string, number> = new Map();
 	private propsObserver: MutationObserver | null = null;
@@ -57,6 +74,8 @@ export default class BasesTagColorsPlugin extends Plugin {
 				if (!leaf) return;
 				if (leaf.view?.getViewType() === 'bases') {
 					this.activateLeaf(leaf);
+				} else if (leaf.view instanceof MarkdownView) {
+					this.activateEmbedLeaf(leaf);
 				}
 			})
 		);
@@ -189,8 +208,9 @@ export default class BasesTagColorsPlugin extends Plugin {
 		untagLeaf(leaf);
 		this.activeLeaves.delete(leaf);
 
-		// Drop the base's stored colors if no other leaf is showing it
-		const stillOpen = [...this.activeLeaves.values()].some(s => s.basePath === state.basePath);
+		// Drop the base's stored colors if no other leaf or embed is showing it
+		const stillOpen = [...this.activeLeaves.values()].some(s => s.basePath === state.basePath) ||
+			this.embedBasePaths.has(state.basePath);
 		if (!stillOpen) this.styles.clearColorsForBase(state.basePath);
 	}
 
@@ -206,6 +226,105 @@ export default class BasesTagColorsPlugin extends Plugin {
 		// Activate new ones
 		for (const leaf of current) {
 			if (!this.activeLeaves.has(leaf)) this.activateLeaf(leaf);
+		}
+
+		// Same dance for markdown leaves, which may hold embedded bases
+		const mdCurrent = new Set(this.app.workspace.getLeavesOfType('markdown'));
+		for (const leaf of [...this.embedLeaves.keys()]) {
+			if (!mdCurrent.has(leaf)) this.deactivateEmbedLeaf(leaf);
+		}
+		for (const leaf of mdCurrent) {
+			if (this.embedLeaves.has(leaf)) {
+				this.refreshEmbedLeaf(leaf);
+			} else {
+				this.activateEmbedLeaf(leaf);
+			}
+		}
+		this.pruneEmbedBasePaths();
+	}
+
+	// ── Embedded bases (![[Something.base]] inside notes) ────────────────
+
+	// Every markdown leaf gets an observer: embeds render lazily on scroll and
+	// appear when the user types one, so watching only leaves that currently
+	// hold an embed would miss both.
+	private activateEmbedLeaf(leaf: WorkspaceLeaf): void {
+		if (this.embedLeaves.has(leaf)) {
+			this.refreshEmbedLeaf(leaf);
+			return;
+		}
+		const view = leaf.view;
+		if (!(view instanceof MarkdownView)) return;
+
+		const observer = new MutationObserver((mutations) => {
+			if (mutationsAddPills(mutations) || mutationsAddBasesEmbeds(mutations)) {
+				this.refreshEmbedLeaf(leaf);
+			}
+		});
+		observer.observe(view.containerEl, { childList: true, subtree: true });
+		this.embedLeaves.set(leaf, { observer });
+		this.refreshEmbedLeaf(leaf);
+	}
+
+	private deactivateEmbedLeaf(leaf: WorkspaceLeaf): void {
+		const state = this.embedLeaves.get(leaf);
+		if (!state) return;
+		state.observer.disconnect();
+
+		// Only sweep the DOM while the leaf still shows a markdown view. When the
+		// leaf morphed into another view type (e.g. the user opened a base in it),
+		// containerEl belongs to the NEW view — sweeping would strip the tag the
+		// bases activation just wrote. The old markdown DOM is discarded anyway.
+		const containerEl = leaf.view instanceof MarkdownView ? leaf.view.containerEl : null;
+		if (containerEl) {
+			containerEl
+				.querySelectorAll<HTMLElement>('[data-blc-value], [data-blc-col]')
+				.forEach(el => {
+					this.styles.unpaintPill(el);
+					el.removeAttribute('data-blc-value');
+					el.removeAttribute('data-blc-col');
+				});
+			containerEl
+				.querySelectorAll('[data-bases-tag-colors-id]')
+				.forEach(el => el.removeAttribute('data-bases-tag-colors-id'));
+		}
+		this.embedLeaves.delete(leaf);
+	}
+
+	// Tag every embed in the leaf, load config for bases seen the first time,
+	// then stamp + paint. Keyed by base path, so the standalone view, split
+	// panes and several embeds of one base all share the same colors.
+	private async refreshEmbedLeaf(leaf: WorkspaceLeaf): Promise<void> {
+		const view = leaf.view;
+		if (!(view instanceof MarkdownView) || !view.file) return;
+
+		const roots = tagEmbeds(this.app, view.containerEl, view.file.path);
+		for (const [basePath, rootEls] of roots.entries()) {
+			if (!this.embedBasePaths.has(basePath)) {
+				this.embedBasePaths.add(basePath);
+				const config = await loadConfig(this.app, basePath);
+				this.styles.setColorsForBase(basePath, config);
+			}
+			for (const rootEl of rootEls) this.refreshView(rootEl, basePath);
+		}
+	}
+
+	// Drop stored colors for bases no longer shown by any embed or leaf
+	private pruneEmbedBasePaths(): void {
+		const alive = new Set<string>();
+		for (const leaf of this.embedLeaves.keys()) {
+			const view = leaf.view;
+			if (!(view instanceof MarkdownView)) continue;
+			view.containerEl.querySelectorAll('[data-bases-tag-colors-id]').forEach(el => {
+				const p = el.getAttribute('data-bases-tag-colors-id');
+				if (p) alive.add(p);
+			});
+		}
+		for (const basePath of [...this.embedBasePaths]) {
+			if (alive.has(basePath)) continue;
+			this.embedBasePaths.delete(basePath);
+			const stillOpen = [...this.activeLeaves.values()].some(s => s.basePath === basePath);
+			if (!stillOpen) this.styles.clearColorsForBase(basePath);
 		}
 	}
 
@@ -248,6 +367,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		for (const state of this.activeLeaves.values()) {
 			this.refreshView(state.rootEl, state.basePath);
 		}
+		for (const leaf of this.embedLeaves.keys()) this.refreshEmbedLeaf(leaf);
 		// Properties pills re-collect too — without this they stay uncolored
 		// after an off→on flip until some unrelated DOM mutation fires
 		if (this.settings.propertiesColor) this.processPropertyPills();
@@ -335,6 +455,8 @@ export default class BasesTagColorsPlugin extends Plugin {
 		this.colorsModifyDebounce.clear();
 
 		for (const leaf of [...this.activeLeaves.keys()]) this.deactivateLeaf(leaf);
+		for (const leaf of [...this.embedLeaves.keys()]) this.deactivateEmbedLeaf(leaf);
+		this.embedBasePaths.clear();
 		this.stopPropertiesColoring();
 		this.styles.destroy();
 	}
