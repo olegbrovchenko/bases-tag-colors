@@ -1,5 +1,6 @@
 import { ColorConfig, PluginSettings } from './types';
 import { sanitizeValue, generateColorFromText } from './config-io';
+import { STAMPED_SELECTOR } from './selectors';
 
 // White text is unreadable on light backgrounds; pick by perceived luminance (YIQ).
 // Unparseable colors keep the historical white.
@@ -158,7 +159,7 @@ export class StyleManager {
 	// ── Painting ─────────────────────────────────────────────────────────
 
 	paintView(rootEl: HTMLElement, basePath: string): void {
-		rootEl.querySelectorAll<HTMLElement>('.multi-select-pill[data-blc-value]').forEach(pill => {
+		rootEl.querySelectorAll<HTMLElement>(STAMPED_SELECTOR).forEach(pill => {
 			const value = pill.getAttribute('data-blc-value');
 			if (!value) return;
 			const col = pill.getAttribute('data-blc-col');

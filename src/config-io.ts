@@ -1,4 +1,5 @@
 import { App, TFile } from 'obsidian';
+import { PILL_SELECTOR, pillText } from './selectors';
 import { ColorConfig, DEFAULT_COLOR_CONFIG } from './types';
 
 export async function listBasesInVault(app: App): Promise<string[]> {
@@ -82,9 +83,8 @@ export async function parseBaseColumns(app: App, basePath: string): Promise<Set<
 export function seedConfigFromView(viewRoot: HTMLElement): ColorConfig {
 	const config: ColorConfig = { version: 1, columns: {} };
 
-	viewRoot.querySelectorAll('.multi-select-pill').forEach(pill => {
-		const contentEl = pill.querySelector('.multi-select-pill-content');
-		const rawText = (contentEl?.textContent ?? pill.textContent ?? '').trim();
+	viewRoot.querySelectorAll(PILL_SELECTOR).forEach(pill => {
+		const rawText = pillText(pill);
 		if (!rawText) return;
 
 		const tdEl = pill.closest('[data-property]') as HTMLElement | null;

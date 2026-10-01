@@ -15,6 +15,7 @@ Obsidian Bases has zero native pill colors. This plugin fixes that: colored, Not
 - **Visual settings UI** - color picker, hex input, search, one-click import. No JSON editing
 - **Notion-style pill shape** - padding and corner sliders, or keep your theme's shape
 - **Colors in note Properties too** - same values, same colors, top of every note
+- **Table, Cards and Kanban** - list values get the same pills in every Bases layout
 - **Embedded bases too** - `![[Base.base]]` inside a note gets the same colors as its own tab
 - **Readable text on any color** - text flips white or dark to stay readable
 - **Live in 100ms** - every change repaints all open views in real time

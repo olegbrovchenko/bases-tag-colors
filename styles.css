@@ -1,5 +1,7 @@
 /* Bases Tag Colors — static base styles */
-.multi-select-pill[data-blc-value] {
+.multi-select-pill[data-blc-value],
+.bases-cards-line .value-list-element[data-blc-value],
+.bases-kanban-card-line .value-list-element[data-blc-value] {
 	transition: background-color 100ms ease;
 }
 
@@ -7,6 +9,23 @@
 .multi-select-pill.blc-colored {
 	background-color: var(--blc-bg) !important;
 	color: var(--blc-fg);
+}
+
+/* Cards / Kanban: values are plain text spans, so give them a pill shape.
+   The card line is a fixed 24px with overflow hidden: line-height 1 plus
+   vertical-align middle keeps the whole pill inside it (bottom corners intact).
+   margin instead of a :has() container rule keeps style recalcs cheap. */
+.bases-cards-line .value-list-element.blc-colored,
+.bases-kanban-card-line .value-list-element.blc-colored {
+	background-color: var(--blc-bg) !important;
+	color: var(--blc-fg) !important;
+	border-radius: var(--blc-br, var(--pill-radius, 12px));
+	padding: var(--blc-py, var(--pill-padding-y)) var(--blc-px, var(--pill-padding-x));
+	margin-inline-end: 4px;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+	line-height: 1;
 }
 
 /* Custom pill shape: --blc-px/--blc-py/--blc-br are set on body by the plugin.

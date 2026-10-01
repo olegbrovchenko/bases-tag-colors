@@ -1,13 +1,13 @@
 import { sanitizeValue } from './config-io';
+import { PILL_SELECTOR, pillText } from './selectors';
 
-// Walks all .multi-select-pill elements inside viewRoot, stamps data-blc-value + data-blc-col.
+// Walks all value elements (table pills + card values) inside viewRoot, stamps data-blc-value + data-blc-col.
 // Idempotent: safe to call multiple times on the same DOM.
 // Returns the sanitized values it stamped, for auto-color registration.
 export function processBaseView(viewRoot: HTMLElement): string[] {
 	const values: string[] = [];
-	viewRoot.querySelectorAll<HTMLElement>('.multi-select-pill').forEach(pill => {
-		const contentEl = pill.querySelector('.multi-select-pill-content');
-		const rawText = (contentEl?.textContent ?? pill.textContent ?? '').trim();
+	viewRoot.querySelectorAll<HTMLElement>(PILL_SELECTOR).forEach(pill => {
+		const rawText = pillText(pill);
 		if (!rawText) return;
 
 		const sanitized = sanitizeValue(rawText);

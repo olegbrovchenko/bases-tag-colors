@@ -1,4 +1,5 @@
 import { App, Notice } from 'obsidian';
+import { PILL_SELECTOR, pillText } from './selectors';
 import { getBasePath } from './base-view';
 import { colorsPathFromBasePath, loadConfig, saveConfig, seedConfigFromView } from './config-io';
 import { DEFAULT_COLOR_CONFIG } from './types';
@@ -130,9 +131,8 @@ export async function cmdMigrateFromOldPlugin(
 
 	// Collect all (rawText) values visible in this base
 	const visibleValues = new Set<string>();
-	rootEl.querySelectorAll('.multi-select-pill').forEach(pill => {
-		const contentEl = pill.querySelector('.multi-select-pill-content');
-		const rawText = (contentEl?.textContent ?? pill.textContent ?? '').trim();
+	rootEl.querySelectorAll(PILL_SELECTOR).forEach(pill => {
+		const rawText = pillText(pill);
 		if (rawText) visibleValues.add(rawText);
 	});
 

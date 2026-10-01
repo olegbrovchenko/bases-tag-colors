@@ -1,4 +1,5 @@
 import { MarkdownView, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { PILL_SELECTOR } from './src/selectors';
 import { getBasePath, tagLeaf, untagLeaf } from './src/base-view';
 import { containsBasesEmbed, tagEmbeds } from './src/embed-view';
 import { basePathFromColorsPath, loadConfig, sanitizeValue } from './src/config-io';
@@ -23,14 +24,16 @@ interface EmbedLeafState {
 	observer: MutationObserver;
 }
 
-function mutationsAddPills(mutations: MutationRecord[]): boolean {
+// True when a mutation added an element matching selector, or one containing it.
+// The document-wide Properties observer passes '.multi-select-pill' only, so
+// Kanban/Cards renders never wake it.
+function mutationsAddMatching(mutations: MutationRecord[], selector: string): boolean {
 	return mutations.some(m =>
 		m.type === 'childList' &&
 		Array.from(m.addedNodes).some(node => {
 			if (node.nodeType !== Node.ELEMENT_NODE) return false;
 			const el = node as HTMLElement;
-			return el.classList.contains('multi-select-pill') ||
-				el.querySelector?.('.multi-select-pill') !== null;
+			return el.matches(selector) || el.querySelector(selector) != null;
 		})
 	);
 }
@@ -148,7 +151,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 	// Watch a view root for virtualised rows adding pills, re-stamp when they appear
 	private createPillObserver(rootEl: HTMLElement, basePath: string): MutationObserver {
 		const observer = new MutationObserver((mutations) => {
-			if (mutationsAddPills(mutations)) this.refreshView(rootEl, basePath);
+			if (mutationsAddMatching(mutations, PILL_SELECTOR)) this.refreshView(rootEl, basePath);
 		});
 		observer.observe(rootEl, { childList: true, subtree: true });
 		return observer;
@@ -252,7 +255,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		if (!(view instanceof MarkdownView)) return;
 
 		const observer = new MutationObserver((mutations) => {
-			if (mutationsAddPills(mutations) || mutationsAddBasesEmbeds(mutations)) {
+			if (mutationsAddMatching(mutations, PILL_SELECTOR) || mutationsAddBasesEmbeds(mutations)) {
 				this.refreshEmbedLeaf(leaf);
 			}
 		});
@@ -395,7 +398,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 	private startPropertiesColoring(): void {
 		if (this.propsObserver) return;
 		this.propsObserver = new MutationObserver((mutations) => {
-			if (mutationsAddPills(mutations)) this.processPropertyPills();
+			if (mutationsAddMatching(mutations, '.multi-select-pill')) this.processPropertyPills();
 		});
 		this.propsObserver.observe(document.body, { childList: true, subtree: true });
 		this.processPropertyPills();

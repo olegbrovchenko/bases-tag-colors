@@ -30,6 +30,19 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian3 = require("obsidian");
 
+// src/selectors.ts
+var PILL_SELECTOR = [
+  ".multi-select-pill",
+  ".bases-cards-line .value-list-element",
+  ".bases-kanban-card-line .value-list-element"
+].join(", ");
+function pillText(pill) {
+  var _a, _b;
+  const contentEl = pill.querySelector(".multi-select-pill-content");
+  return ((_b = (_a = contentEl == null ? void 0 : contentEl.textContent) != null ? _a : pill.textContent) != null ? _b : "").trim();
+}
+var STAMPED_SELECTOR = PILL_SELECTOR.split(", ").map((s) => `${s}[data-blc-value]`).join(", ");
+
 // src/base-view.ts
 function getBasePath(leaf) {
   var _a, _b, _c, _d, _e;
@@ -168,14 +181,13 @@ async function parseBaseColumns(app, basePath) {
 }
 function seedConfigFromView(viewRoot) {
   const config = { version: 1, columns: {} };
-  viewRoot.querySelectorAll(".multi-select-pill").forEach((pill) => {
-    var _a, _b, _c;
-    const contentEl = pill.querySelector(".multi-select-pill-content");
-    const rawText = ((_b = (_a = contentEl == null ? void 0 : contentEl.textContent) != null ? _a : pill.textContent) != null ? _b : "").trim();
+  viewRoot.querySelectorAll(PILL_SELECTOR).forEach((pill) => {
+    var _a;
+    const rawText = pillText(pill);
     if (!rawText)
       return;
     const tdEl = pill.closest("[data-property]");
-    const col = (_c = tdEl == null ? void 0 : tdEl.getAttribute("data-property")) != null ? _c : "*";
+    const col = (_a = tdEl == null ? void 0 : tdEl.getAttribute("data-property")) != null ? _a : "*";
     const sanitized = sanitizeValue(rawText);
     if (!sanitized)
       return;
@@ -332,7 +344,7 @@ var StyleManager = class {
   }
   // ── Painting ─────────────────────────────────────────────────────────
   paintView(rootEl, basePath) {
-    rootEl.querySelectorAll(".multi-select-pill[data-blc-value]").forEach((pill) => {
+    rootEl.querySelectorAll(STAMPED_SELECTOR).forEach((pill) => {
       const value = pill.getAttribute("data-blc-value");
       if (!value)
         return;
@@ -419,10 +431,8 @@ var StyleManager = class {
 // src/pill-processor.ts
 function processBaseView(viewRoot) {
   const values = [];
-  viewRoot.querySelectorAll(".multi-select-pill").forEach((pill) => {
-    var _a, _b;
-    const contentEl = pill.querySelector(".multi-select-pill-content");
-    const rawText = ((_b = (_a = contentEl == null ? void 0 : contentEl.textContent) != null ? _a : pill.textContent) != null ? _b : "").trim();
+  viewRoot.querySelectorAll(PILL_SELECTOR).forEach((pill) => {
+    const rawText = pillText(pill);
     if (!rawText)
       return;
     const sanitized = sanitizeValue(rawText);
@@ -550,10 +560,8 @@ async function cmdMigrateFromOldPlugin(app, applyToBase) {
     return;
   const rootEl = (_c = containerEl.querySelector(".bases-view")) != null ? _c : containerEl;
   const visibleValues = /* @__PURE__ */ new Set();
-  rootEl.querySelectorAll(".multi-select-pill").forEach((pill) => {
-    var _a2, _b2;
-    const contentEl = pill.querySelector(".multi-select-pill-content");
-    const rawText = ((_b2 = (_a2 = contentEl == null ? void 0 : contentEl.textContent) != null ? _a2 : pill.textContent) != null ? _b2 : "").trim();
+  rootEl.querySelectorAll(PILL_SELECTOR).forEach((pill) => {
+    const rawText = pillText(pill);
     if (rawText)
       visibleValues.add(rawText);
   });
@@ -951,14 +959,13 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
 };
 
 // main.ts
-function mutationsAddPills(mutations) {
+function mutationsAddMatching(mutations, selector) {
   return mutations.some(
     (m) => m.type === "childList" && Array.from(m.addedNodes).some((node) => {
-      var _a;
       if (node.nodeType !== Node.ELEMENT_NODE)
         return false;
       const el = node;
-      return el.classList.contains("multi-select-pill") || ((_a = el.querySelector) == null ? void 0 : _a.call(el, ".multi-select-pill")) !== null;
+      return el.matches(selector) || el.querySelector(selector) != null;
     })
   );
 }
@@ -1063,7 +1070,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   // Watch a view root for virtualised rows adding pills, re-stamp when they appear
   createPillObserver(rootEl, basePath) {
     const observer = new MutationObserver((mutations) => {
-      if (mutationsAddPills(mutations))
+      if (mutationsAddMatching(mutations, PILL_SELECTOR))
         this.refreshView(rootEl, basePath);
     });
     observer.observe(rootEl, { childList: true, subtree: true });
@@ -1146,7 +1153,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (!(view instanceof import_obsidian3.MarkdownView))
       return;
     const observer = new MutationObserver((mutations) => {
-      if (mutationsAddPills(mutations) || mutationsAddBasesEmbeds(mutations)) {
+      if (mutationsAddMatching(mutations, PILL_SELECTOR) || mutationsAddBasesEmbeds(mutations)) {
         this.refreshEmbedLeaf(leaf);
       }
     });
@@ -1277,7 +1284,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     if (this.propsObserver)
       return;
     this.propsObserver = new MutationObserver((mutations) => {
-      if (mutationsAddPills(mutations))
+      if (mutationsAddMatching(mutations, ".multi-select-pill"))
         this.processPropertyPills();
     });
     this.propsObserver.observe(document.body, { childList: true, subtree: true });
