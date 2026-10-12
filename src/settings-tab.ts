@@ -1,7 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type BasesTagColorsPlugin from '../main';
 import { listBasesInVault, loadConfig, saveConfig, seedConfigFromView, parseBaseColumns } from './config-io';
-import { ColorConfig } from './types';
+import { CARD_PADDING_Y_MAX, ColorConfig } from './types';
 import { getBasePath } from './base-view';
 
 export class BasesTagColorsSettingTab extends PluginSettingTab {
@@ -69,6 +69,10 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		// Pill shape (global appearance)
 		containerEl.createEl('div', { text: 'Pill shape', cls: 'blc-section-label' });
 		this.buildShapeSection(containerEl, listEl);
+
+		// Cards (gallery) + Kanban views
+		containerEl.createEl('div', { text: 'Cards and Kanban', cls: 'blc-section-label' });
+		this.buildCardsSection(containerEl);
 
 		// Auto color (global)
 		containerEl.createEl('div', { text: 'Auto color', cls: 'blc-section-label' });
@@ -267,6 +271,63 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 
 		renderSliders();
 		this.applyPreviewShape(listEl);
+	}
+
+	private buildCardsSection(containerEl: HTMLElement): void {
+		const shape = this.plugin.settings;
+
+		new Setting(containerEl)
+			.setName('Color values in Cards and Kanban')
+			.setDesc('List and tag values on cards (gallery view) and Kanban boards get the same colors as in tables.')
+			.addToggle(t => t
+				.setValue(shape.cardsColor)
+				.onChange(async (v) => {
+					shape.cardsColor = v;
+					await this.plugin.saveSettings();
+					renderOptions();
+				}));
+
+		const optionsEl = containerEl.createDiv();
+
+		const sliderDefs: Array<{ name: string; desc: string; min: number; max: number; key: 'cardPaddingX' | 'cardPaddingY' | 'cardBorderRadius' }> = [
+			{ name: 'Card horizontal padding', desc: 'Space left and right of the text on cards.', min: 2, max: 18, key: 'cardPaddingX' },
+			{ name: 'Card vertical padding', desc: 'Space above and below the text on cards. Capped so pills fit the card line.', min: 0, max: CARD_PADDING_Y_MAX, key: 'cardPaddingY' },
+			{ name: 'Card corner radius', desc: '0 = square, higher = rounder.', min: 0, max: 24, key: 'cardBorderRadius' },
+		];
+
+		const renderOptions = () => {
+			optionsEl.empty();
+			if (!shape.cardsColor) return;
+
+			new Setting(optionsEl)
+				.setName('Own pill shape for cards')
+				.setDesc('Give card pills their own padding and corners. Off = cards use the pill shape above.')
+				.addToggle(t => t
+					.setValue(shape.cardsOwnShape)
+					.onChange(async (v) => {
+						shape.cardsOwnShape = v;
+						await this.plugin.saveSettings();
+						renderOptions();
+					}));
+
+			if (!shape.cardsOwnShape) return;
+			for (const def of sliderDefs) {
+				new Setting(optionsEl)
+					.setName(def.name)
+					.setDesc(def.desc)
+					.addSlider(s => s
+						.setLimits(def.min, def.max, 1)
+						.setValue(shape[def.key])
+						.setDynamicTooltip()
+						.onChange((v) => {
+							shape[def.key] = v;
+							this.plugin.applyShape();
+							this.debouncedSaveShape();
+						}));
+			}
+		};
+
+		renderOptions();
 	}
 
 	private debouncedSaveShape(): void {

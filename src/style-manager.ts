@@ -89,6 +89,19 @@ export class StyleManager {
 		} else {
 			body.setCssProps({ '--blc-px': '', '--blc-py': '', '--blc-br': '' });
 		}
+		// Cards / Kanban: the class gates their pill rules in styles.css, so the
+		// toggle is instant and paint stays put underneath. Their own shape, when
+		// set, wins over the table shape; unset falls back to it.
+		body.toggleClass('blc-cards', shape.cardsColor);
+		if (shape.cardsColor && shape.cardsOwnShape) {
+			body.setCssProps({
+				'--blc-card-px': `${Math.round(shape.cardPaddingX)}px`,
+				'--blc-card-py': `${Math.round(shape.cardPaddingY)}px`,
+				'--blc-card-br': `${Math.round(shape.cardBorderRadius)}px`,
+			});
+		} else {
+			body.setCssProps({ '--blc-card-px': '', '--blc-card-py': '', '--blc-card-br': '' });
+		}
 	}
 
 	clearColorsForBase(basePath: string): void {
@@ -239,7 +252,10 @@ export class StyleManager {
 		this.propertyConfig = new Map();
 		this.propertyAutoColors.clear();
 		document.querySelectorAll<HTMLElement>('.blc-colored').forEach(pill => this.unpaintPill(pill));
-		document.body.removeClass('blc-shape', 'blc-shape-props');
-		document.body.setCssProps({ '--blc-px': '', '--blc-py': '', '--blc-br': '' });
+		document.body.removeClass('blc-shape', 'blc-shape-props', 'blc-cards');
+		document.body.setCssProps({
+			'--blc-px': '', '--blc-py': '', '--blc-br': '',
+			'--blc-card-px': '', '--blc-card-py': '', '--blc-card-br': '',
+		});
 	}
 }

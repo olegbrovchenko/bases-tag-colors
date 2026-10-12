@@ -1,6 +1,6 @@
 {
   "name": "bases-tag-colors",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Colored tags for Bases and note Properties: auto-color every value, Notion-style pills, per-base palettes. No global tag soup.",
   "main": "main.js",
   "scripts": {

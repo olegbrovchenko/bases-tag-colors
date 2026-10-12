@@ -12,20 +12,39 @@
 }
 
 /* Cards / Kanban: values are plain text spans, so give them a pill shape.
+   Gated on body.blc-cards (the "Cards and Kanban" toggle).
    The card line is a fixed 24px with overflow hidden: line-height 1 plus
    vertical-align middle keeps the whole pill inside it (bottom corners intact).
+   Shape: the card's own shape when set, else the table shape, else the theme's.
+   Vertical padding is clamped to 3px whatever its source: the table slider
+   goes to 10, which would cut the pill's bottom off on a card.
    margin instead of a :has() container rule keeps style recalcs cheap. */
-.bases-cards-line .value-list-element.blc-colored,
-.bases-kanban-card-line .value-list-element.blc-colored {
+body.blc-cards .bases-cards-line .value-list-element.blc-colored,
+body.blc-cards .bases-kanban-card-line .value-list-element.blc-colored {
 	background-color: var(--blc-bg) !important;
 	color: var(--blc-fg) !important;
-	border-radius: var(--blc-br, var(--pill-radius, 12px));
-	padding: var(--blc-py, var(--pill-padding-y)) var(--blc-px, var(--pill-padding-x));
+	border-radius: var(--blc-card-br, var(--blc-br, var(--pill-radius, 12px)));
+	padding: min(var(--blc-card-py, var(--blc-py, var(--pill-padding-y))), 3px) var(--blc-card-px, var(--blc-px, var(--pill-padding-x)));
 	margin-inline-end: 4px;
 	display: inline-flex;
 	align-items: center;
 	vertical-align: middle;
 	line-height: 1;
+}
+
+/* Tag values (#tag) render as a.tag inside the span, carrying the theme's own
+   tag pill (tinted background, accent text, smaller font). Inside our pill
+   that reads as a pill in a pill with accent text on our color: flatten it.
+   !important because themes commonly force their tag look with it. */
+body.blc-cards .bases-cards-line .value-list-element.blc-colored .tag,
+body.blc-cards .bases-kanban-card-line .value-list-element.blc-colored .tag {
+	background: none !important;
+	color: inherit !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	font-size: inherit !important;
+	line-height: inherit !important;
 }
 
 /* Custom pill shape: --blc-px/--blc-py/--blc-br are set on body by the plugin.

@@ -12,7 +12,7 @@ import {
 	cmdMigrateFromOldPlugin,
 } from './src/commands';
 import { BasesTagColorsSettingTab } from './src/settings-tab';
-import { DEFAULT_SETTINGS, PluginSettings } from './src/types';
+import { CARD_PADDING_Y_MAX, DEFAULT_SETTINGS, PluginSettings } from './src/types';
 
 interface LeafState {
 	basePath: string;
@@ -62,12 +62,15 @@ export default class BasesTagColorsPlugin extends Plugin {
 		this.styles = new StyleManager();
 		const stored = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 		// Guard against a hand-edited/corrupted data.json feeding NaN into sliders + CSS
-		for (const key of ['paddingX', 'paddingY', 'borderRadius'] as const) {
-			if (!Number.isFinite(stored[key])) stored[key] = DEFAULT_SETTINGS[key];
+		for (const key of ['paddingX', 'paddingY', 'borderRadius', 'cardPaddingX', 'cardPaddingY', 'cardBorderRadius'] as const) {
+			if (!Number.isFinite(stored[key]) || stored[key] < 0) stored[key] = DEFAULT_SETTINGS[key];
 		}
+		stored.cardPaddingY = Math.min(stored.cardPaddingY, CARD_PADDING_Y_MAX);
 		stored.customShape = !!stored.customShape;
 		stored.autoColor = !!stored.autoColor;
 		stored.propertiesColor = !!stored.propertiesColor;
+		stored.cardsColor = !!stored.cardsColor;
+		stored.cardsOwnShape = !!stored.cardsOwnShape;
 		this.settings = stored;
 		this.styles.setShape(this.settings);
 

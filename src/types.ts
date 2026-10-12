@@ -23,6 +23,12 @@ export interface PluginSettings {
 	borderRadius: number;
 	autoColor: boolean;
 	propertiesColor: boolean;
+	// Cards (gallery) and Kanban views
+	cardsColor: boolean;
+	cardsOwnShape: boolean;
+	cardPaddingX: number;
+	cardPaddingY: number;
+	cardBorderRadius: number;
 }
 
 // Shape defaults mirror the original Notion-style design snippet the plugin
@@ -34,4 +40,13 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	borderRadius: 4,
 	autoColor: true,
 	propertiesColor: true,
+	cardsColor: true,
+	cardsOwnShape: false,
+	cardPaddingX: 6,
+	cardPaddingY: 2,
+	cardBorderRadius: 4,
 };
+
+// Card lines are a fixed 24px (4px top padding) with overflow hidden: above this the pill's
+// bottom edge gets cut off. styles.css clamps at the same 3px for the table-shape fallback.
+export const CARD_PADDING_Y_MAX = 3;

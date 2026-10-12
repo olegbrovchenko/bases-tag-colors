@@ -112,8 +112,14 @@ var DEFAULT_SETTINGS = {
   paddingY: 2,
   borderRadius: 4,
   autoColor: true,
-  propertiesColor: true
+  propertiesColor: true,
+  cardsColor: true,
+  cardsOwnShape: false,
+  cardPaddingX: 6,
+  cardPaddingY: 2,
+  cardBorderRadius: 4
 };
+var CARD_PADDING_Y_MAX = 3;
 
 // src/config-io.ts
 async function listBasesInVault(app) {
@@ -280,6 +286,16 @@ var StyleManager = class {
     } else {
       body.setCssProps({ "--blc-px": "", "--blc-py": "", "--blc-br": "" });
     }
+    body.toggleClass("blc-cards", shape.cardsColor);
+    if (shape.cardsColor && shape.cardsOwnShape) {
+      body.setCssProps({
+        "--blc-card-px": `${Math.round(shape.cardPaddingX)}px`,
+        "--blc-card-py": `${Math.round(shape.cardPaddingY)}px`,
+        "--blc-card-br": `${Math.round(shape.cardBorderRadius)}px`
+      });
+    } else {
+      body.setCssProps({ "--blc-card-px": "", "--blc-card-py": "", "--blc-card-br": "" });
+    }
   }
   clearColorsForBase(basePath) {
     this.configByBase.delete(basePath);
@@ -423,8 +439,15 @@ var StyleManager = class {
     this.propertyConfig = /* @__PURE__ */ new Map();
     this.propertyAutoColors.clear();
     document.querySelectorAll(".blc-colored").forEach((pill) => this.unpaintPill(pill));
-    document.body.removeClass("blc-shape", "blc-shape-props");
-    document.body.setCssProps({ "--blc-px": "", "--blc-py": "", "--blc-br": "" });
+    document.body.removeClass("blc-shape", "blc-shape-props", "blc-cards");
+    document.body.setCssProps({
+      "--blc-px": "",
+      "--blc-py": "",
+      "--blc-br": "",
+      "--blc-card-px": "",
+      "--blc-card-py": "",
+      "--blc-card-br": ""
+    });
   }
 };
 
@@ -634,6 +657,8 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     this.buildAddRow(addRowEl, listEl);
     containerEl.createEl("div", { text: "Pill shape", cls: "blc-section-label" });
     this.buildShapeSection(containerEl, listEl);
+    containerEl.createEl("div", { text: "Cards and Kanban", cls: "blc-section-label" });
+    this.buildCardsSection(containerEl);
     containerEl.createEl("div", { text: "Auto color", cls: "blc-section-label" });
     new import_obsidian2.Setting(containerEl).setName("Auto-color unconfigured values").setDesc("Values without a configured color get a consistent generated one. Your configured colors always win.").addToggle((t) => t.setValue(this.plugin.settings.autoColor).onChange(async (v) => {
       this.plugin.settings.autoColor = v;
@@ -780,6 +805,40 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     };
     renderSliders();
     this.applyPreviewShape(listEl);
+  }
+  buildCardsSection(containerEl) {
+    const shape = this.plugin.settings;
+    new import_obsidian2.Setting(containerEl).setName("Color values in Cards and Kanban").setDesc("List and tag values on cards (gallery view) and Kanban boards get the same colors as in tables.").addToggle((t) => t.setValue(shape.cardsColor).onChange(async (v) => {
+      shape.cardsColor = v;
+      await this.plugin.saveSettings();
+      renderOptions();
+    }));
+    const optionsEl = containerEl.createDiv();
+    const sliderDefs = [
+      { name: "Card horizontal padding", desc: "Space left and right of the text on cards.", min: 2, max: 18, key: "cardPaddingX" },
+      { name: "Card vertical padding", desc: "Space above and below the text on cards. Capped so pills fit the card line.", min: 0, max: CARD_PADDING_Y_MAX, key: "cardPaddingY" },
+      { name: "Card corner radius", desc: "0 = square, higher = rounder.", min: 0, max: 24, key: "cardBorderRadius" }
+    ];
+    const renderOptions = () => {
+      optionsEl.empty();
+      if (!shape.cardsColor)
+        return;
+      new import_obsidian2.Setting(optionsEl).setName("Own pill shape for cards").setDesc("Give card pills their own padding and corners. Off = cards use the pill shape above.").addToggle((t) => t.setValue(shape.cardsOwnShape).onChange(async (v) => {
+        shape.cardsOwnShape = v;
+        await this.plugin.saveSettings();
+        renderOptions();
+      }));
+      if (!shape.cardsOwnShape)
+        return;
+      for (const def of sliderDefs) {
+        new import_obsidian2.Setting(optionsEl).setName(def.name).setDesc(def.desc).addSlider((s) => s.setLimits(def.min, def.max, 1).setValue(shape[def.key]).setDynamicTooltip().onChange((v) => {
+          shape[def.key] = v;
+          this.plugin.applyShape();
+          this.debouncedSaveShape();
+        }));
+      }
+    };
+    renderOptions();
   }
   debouncedSaveShape() {
     if (this.shapeSaveTimer !== null)
@@ -991,13 +1050,16 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   async onload() {
     this.styles = new StyleManager();
     const stored = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    for (const key of ["paddingX", "paddingY", "borderRadius"]) {
-      if (!Number.isFinite(stored[key]))
+    for (const key of ["paddingX", "paddingY", "borderRadius", "cardPaddingX", "cardPaddingY", "cardBorderRadius"]) {
+      if (!Number.isFinite(stored[key]) || stored[key] < 0)
         stored[key] = DEFAULT_SETTINGS[key];
     }
+    stored.cardPaddingY = Math.min(stored.cardPaddingY, CARD_PADDING_Y_MAX);
     stored.customShape = !!stored.customShape;
     stored.autoColor = !!stored.autoColor;
     stored.propertiesColor = !!stored.propertiesColor;
+    stored.cardsColor = !!stored.cardsColor;
+    stored.cardsOwnShape = !!stored.cardsOwnShape;
     this.settings = stored;
     this.styles.setShape(this.settings);
     this.registerEvent(
