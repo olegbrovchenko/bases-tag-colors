@@ -26,11 +26,15 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			window.clearTimeout(this.shapeSaveTimer);
 			this.shapeSaveTimer = null;
 			// Flush the pending write so a slider tweak right before closing isn't lost
-			this.plugin.saveSettings();
+			void this.plugin.saveSettings();
 		}
 	}
 
-	async display(): Promise<void> {
+	display(): void {
+		void this.render();
+	}
+
+	private async render(): Promise<void> {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass('blc-settings');
@@ -58,24 +62,24 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		});
 
 		// Colors list
-		containerEl.createEl('div', { text: 'Colors', cls: 'blc-section-label' });
+		containerEl.createDiv({ text: 'Colors', cls: 'blc-section-label' });
 		const listEl = containerEl.createDiv({ cls: 'blc-list' });
 
 		// Add row
-		containerEl.createEl('div', { text: 'Add value', cls: 'blc-section-label' });
+		containerEl.createDiv({ text: 'Add value', cls: 'blc-section-label' });
 		const addRowEl = containerEl.createDiv({ cls: 'blc-add-row' });
 		this.buildAddRow(addRowEl, listEl);
 
 		// Pill shape (global appearance)
-		containerEl.createEl('div', { text: 'Pill shape', cls: 'blc-section-label' });
+		containerEl.createDiv({ text: 'Pill shape', cls: 'blc-section-label' });
 		this.buildShapeSection(containerEl, listEl);
 
 		// Cards (gallery) + Kanban views
-		containerEl.createEl('div', { text: 'Cards and Kanban', cls: 'blc-section-label' });
+		containerEl.createDiv({ text: 'Cards and Kanban', cls: 'blc-section-label' });
 		this.buildCardsSection(containerEl);
 
 		// Auto color (global)
-		containerEl.createEl('div', { text: 'Auto color', cls: 'blc-section-label' });
+		containerEl.createDiv({ text: 'Auto color', cls: 'blc-section-label' });
 		new Setting(containerEl)
 			.setName('Auto-color unconfigured values')
 			.setDesc('Values without a configured color get a consistent generated one. Your configured colors always win.')
@@ -107,7 +111,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		const activeLeaf = this.app.workspace.activeLeaf;
+		const activeLeaf = this.app.workspace.getMostRecentLeaf();
 		const activeBase = activeLeaf ? getBasePath(activeLeaf) : null;
 
 		for (const b of bases) {
@@ -121,21 +125,21 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		this.config = await loadConfig(this.app, this.selectedBase);
 		this.renderValueList(listEl);
 
-		select.addEventListener('change', async () => {
+		select.addEventListener('change', () => void (async () => {
 			this.selectedBase = select.value;
 			this.config = await loadConfig(this.app, this.selectedBase);
 			this.searchQuery = '';
 			searchInput.value = '';
 			this.renderValueList(listEl);
-		});
+		})());
 
 		searchInput.addEventListener('input', () => {
 			this.searchQuery = searchInput.value.toLowerCase();
 			this.filterRows(listEl);
 		});
 
-		importBtn.addEventListener('click', async () => {
-			const leaf = this.app.workspace.activeLeaf;
+		importBtn.addEventListener('click', () => void (async () => {
+			const leaf = this.app.workspace.getMostRecentLeaf();
 			if (!leaf || leaf.view?.getViewType() !== 'bases') {
 				importBtn.title = 'No bases view open';
 				return;
@@ -149,7 +153,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			const view = leaf.view as { containerEl?: HTMLElement };
 			const containerEl2 = view.containerEl;
 			if (!containerEl2) return;
-			const rootEl = (containerEl2.querySelector('.bases-view') as HTMLElement | null) ?? containerEl2;
+			const rootEl = containerEl2.querySelector<HTMLElement>('.bases-view') ?? containerEl2;
 			const seeded = seedConfigFromView(rootEl);
 			const allowedCols = await parseBaseColumns(this.app, this.selectedBase);
 
@@ -165,15 +169,15 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 
 			await this.saveAndApply();
 			this.renderValueList(listEl);
-		});
+		})());
 
-		refreshBtn.addEventListener('click', async () => {
+		refreshBtn.addEventListener('click', () => void (async () => {
 			if (!this.selectedBase) return;
 			this.config = await loadConfig(this.app, this.selectedBase);
 			this.renderValueList(listEl);
 			await this.plugin.applyToBase(this.selectedBase);
 			new Notice('Bases Tag Colors: refreshed');
-		});
+		})());
 
 		this.updateImportBtnState(importBtn);
 
@@ -209,13 +213,13 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-red' });
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-yellow' });
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-green' });
-		windowChrome.createEl('span', { text: 'YouTube Ideas.base', cls: 'blc-window-title' });
+		windowChrome.createSpan({ text: 'YouTube Ideas.base', cls: 'blc-window-title' });
 		const img = windowFrame.createEl('img', { cls: 'blc-preview-img', attr: { alt: 'Bases Tag Colors in action' } });
 		// preview.png only exists in manual/dev installs — the community store ships
 		// just main.js/manifest.json/styles.css. Without it, drop the whole section
 		// instead of showing a broken image box.
 		img.onerror = () => previewSection.remove();
-		const pluginDir = (this.plugin.manifest as { dir?: string }).dir ?? '.obsidian/plugins/bases-tag-colors';
+		const pluginDir = (this.plugin.manifest as { dir?: string }).dir ?? `${this.app.vault.configDir}/plugins/bases-tag-colors`;
 		img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
 
 		// Sign-off — last element
@@ -334,7 +338,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		if (this.shapeSaveTimer !== null) window.clearTimeout(this.shapeSaveTimer);
 		this.shapeSaveTimer = window.setTimeout(() => {
 			this.shapeSaveTimer = null;
-			this.plugin.saveSettings();
+			void this.plugin.saveSettings();
 		}, 150);
 	}
 
@@ -353,7 +357,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 	}
 
 	private updateImportBtnState(btn: HTMLButtonElement): void {
-		const leaf = this.app.workspace.activeLeaf;
+		const leaf = this.app.workspace.getMostRecentLeaf();
 		const isBasesView = leaf?.view?.getViewType() === 'bases';
 		btn.disabled = !isBasesView;
 		btn.title = isBasesView ? 'Import all visible pill values from the active base' : 'No bases view open';
@@ -404,22 +408,22 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		row.dataset.value = rawValue.toLowerCase();
 
 		// Pill preview — mirrors real Bases pill appearance
-		const pillPreview = row.createEl('span', { text: rawValue, cls: 'blc-pill-preview' });
+		const pillPreview = row.createSpan({ text: rawValue, cls: 'blc-pill-preview' });
 		pillPreview.setCssStyles({ backgroundColor: color });
 
 		// Column badge
-		row.createEl('span', { text: col === '*' ? 'any column' : col, cls: 'blc-col-badge' });
+		row.createSpan({ text: col === '*' ? 'any column' : col, cls: 'blc-col-badge' });
 
 		// Spacer
 		row.createDiv({ cls: 'blc-spacer' });
 
 		// Color picker
-		const picker = row.createEl('input', { cls: 'blc-color-picker' }) as HTMLInputElement;
+		const picker = row.createEl('input', { cls: 'blc-color-picker' });
 		picker.type = 'color';
 		picker.value = color;
 
 		// Hex input
-		const hexInput = row.createEl('input', { cls: 'blc-hex-input' }) as HTMLInputElement;
+		const hexInput = row.createEl('input', { cls: 'blc-hex-input' });
 		hexInput.type = 'text';
 		hexInput.maxLength = 7;
 		hexInput.value = color;
@@ -443,31 +447,31 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 				picker.value = val;
 				pillPreview.setCssStyles({ backgroundColor: val });
 				this.setColor(col, rawValue, val);
-				this.saveAndApply();
+				void this.saveAndApply();
 			} else {
 				hexInput.value = picker.value; // revert bad input
 			}
 		});
 
 		// --- Remove ---
-		removeBtn.addEventListener('click', async () => {
+		removeBtn.addEventListener('click', () => void (async () => {
 			this.deleteColor(col, rawValue);
 			await this.saveAndApply();
 			row.remove();
-		});
+		})());
 	}
 
 	private buildAddRow(addRowEl: HTMLElement, listEl: HTMLElement): void {
 
-		const nameInput = addRowEl.createEl('input', { cls: 'blc-add-name' }) as HTMLInputElement;
+		const nameInput = addRowEl.createEl('input', { cls: 'blc-add-name' });
 		nameInput.type = 'text';
 		nameInput.placeholder = 'Value name';
 
-		const picker = addRowEl.createEl('input', { cls: 'blc-color-picker' }) as HTMLInputElement;
+		const picker = addRowEl.createEl('input', { cls: 'blc-color-picker' });
 		picker.type = 'color';
 		picker.value = '#78b7b8';
 
-		const hexInput = addRowEl.createEl('input', { cls: 'blc-hex-input' }) as HTMLInputElement;
+		const hexInput = addRowEl.createEl('input', { cls: 'blc-hex-input' });
 		hexInput.type = 'text';
 		hexInput.maxLength = 7;
 		hexInput.value = '#78b7b8';
@@ -483,7 +487,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		});
 
 		const addBtn = addRowEl.createEl('button', { text: '+ Add', cls: 'blc-add-btn' });
-		addBtn.addEventListener('click', async () => {
+		addBtn.addEventListener('click', () => void (async () => {
 			const name = nameInput.value.trim();
 			if (!name) return;
 			const color = picker.value;
@@ -495,7 +499,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			nameInput.value = '';
 			picker.value = '#78b7b8';
 			hexInput.value = '#78b7b8';
-		});
+		})());
 	}
 
 	private filterRows(listEl: HTMLElement): void {
@@ -525,7 +529,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		if (this.debounceTimer !== null) window.clearTimeout(this.debounceTimer);
 		this.debounceTimer = window.setTimeout(() => {
 			this.debounceTimer = null;
-			this.saveAndApply();
+			void this.saveAndApply();
 		}, 150);
 	}
 

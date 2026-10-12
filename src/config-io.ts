@@ -24,9 +24,9 @@ export async function loadConfig(app: App, basePath: string): Promise<ColorConfi
 		if (!exists) return { ...DEFAULT_COLOR_CONFIG };
 
 		const raw = await app.vault.adapter.read(colorsPath);
-		const parsed = JSON.parse(raw);
+		const parsed = JSON.parse(raw) as Partial<ColorConfig> | null;
 
-		if (parsed.version !== 1) return { ...DEFAULT_COLOR_CONFIG };
+		if (parsed?.version !== 1) return { ...DEFAULT_COLOR_CONFIG };
 		if (typeof parsed.columns !== 'object' || parsed.columns === null || Array.isArray(parsed.columns)) {
 			return { ...DEFAULT_COLOR_CONFIG };
 		}
@@ -87,7 +87,7 @@ export function seedConfigFromView(viewRoot: HTMLElement): ColorConfig {
 		const rawText = pillText(pill);
 		if (!rawText) return;
 
-		const tdEl = pill.closest('[data-property]') as HTMLElement | null;
+		const tdEl = pill.closest<HTMLElement>('[data-property]');
 		const col = tdEl?.getAttribute('data-property') ?? '*';
 
 		const sanitized = sanitizeValue(rawText);

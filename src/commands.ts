@@ -6,7 +6,7 @@ import { DEFAULT_COLOR_CONFIG } from './types';
 
 // Opens the *.colors.json sibling, creating a skeleton if it doesn't exist.
 export async function cmdOpenColorConfig(app: App): Promise<void> {
-	const leaf = app.workspace.activeLeaf;
+	const leaf = app.workspace.getMostRecentLeaf();
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
 		new Notice('Bases Tag Colors: open a .base file first');
 		return;
@@ -35,7 +35,7 @@ export async function cmdOpenColorConfig(app: App): Promise<void> {
 
 // Seeds *.colors.json with placeholder colors for all currently visible pills.
 export async function cmdSeedFromCurrentBase(app: App): Promise<void> {
-	const leaf = app.workspace.activeLeaf;
+	const leaf = app.workspace.getMostRecentLeaf();
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
 		new Notice('Bases Tag Colors: open a .base file first');
 		return;
@@ -50,7 +50,7 @@ export async function cmdSeedFromCurrentBase(app: App): Promise<void> {
 	const containerEl = view.containerEl;
 	if (!containerEl) return;
 	const rootEl =
-		(containerEl.querySelector('.bases-view') as HTMLElement | null) ?? containerEl;
+		containerEl.querySelector<HTMLElement>('.bases-view') ?? containerEl;
 
 	// Merge into the existing config — a seed must never wipe hand-tuned colors
 	const seeded = seedConfigFromView(rootEl);
@@ -76,7 +76,7 @@ export async function cmdReloadColorConfig(
 	app: App,
 	applyToBase: (basePath: string) => Promise<void>
 ): Promise<void> {
-	const leaf = app.workspace.activeLeaf;
+	const leaf = app.workspace.getMostRecentLeaf();
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
 		new Notice('Bases Tag Colors: open a .base file first');
 		return;
@@ -95,7 +95,7 @@ export async function cmdMigrateFromOldPlugin(
 	app: App,
 	applyToBase: (basePath: string) => Promise<void>
 ): Promise<void> {
-	const leaf = app.workspace.activeLeaf;
+	const leaf = app.workspace.getMostRecentLeaf();
 	if (!leaf || leaf.view?.getViewType() !== 'bases') {
 		new Notice('Bases Tag Colors: open a .base file first');
 		return;
@@ -106,7 +106,7 @@ export async function cmdMigrateFromOldPlugin(
 		return;
 	}
 
-	const oldDataPath = '.obsidian/plugins/colored-bases-properties/data.json';
+	const oldDataPath = `${app.vault.configDir}/plugins/colored-bases-properties/data.json`;
 	const oldExists = await app.vault.adapter.exists(oldDataPath);
 	if (!oldExists) {
 		new Notice('Bases Tag Colors: colored-bases-properties not found — nothing to migrate');
@@ -127,7 +127,7 @@ export async function cmdMigrateFromOldPlugin(
 	const containerEl = view.containerEl;
 	if (!containerEl) return;
 	const rootEl =
-		(containerEl.querySelector('.bases-view') as HTMLElement | null) ?? containerEl;
+		containerEl.querySelector<HTMLElement>('.bases-view') ?? containerEl;
 
 	// Collect all (rawText) values visible in this base
 	const visibleValues = new Set<string>();

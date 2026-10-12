@@ -141,7 +141,10 @@ export class StyleManager {
 	setPropertyColors(configs: ColorConfig[]): void {
 		const merged: ColumnColors = new Map();
 		for (const config of configs) {
-			for (const [col, values] of parseColumns(config).entries()) {
+			for (const [baseCol, values] of parseColumns(config).entries()) {
+				// Bases name a frontmatter column 'note.owner'; the Properties panel
+				// keys the same property as plain 'owner'
+				const col = baseCol.startsWith('note.') ? baseCol.slice(5) : baseCol;
 				let target = merged.get(col);
 				if (!target) {
 					target = new Map();

@@ -16,7 +16,7 @@ export function processBaseView(viewRoot: HTMLElement): string[] {
 		pill.setAttribute('data-blc-value', sanitized);
 		values.push(sanitized);
 
-		const tdEl = pill.closest('[data-property]') as HTMLElement | null;
+		const tdEl = pill.closest<HTMLElement>('[data-property]');
 		const col = tdEl?.getAttribute('data-property');
 		if (col) {
 			pill.setAttribute('data-blc-col', col);

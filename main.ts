@@ -60,7 +60,8 @@ export default class BasesTagColorsPlugin extends Plugin {
 
 	async onload() {
 		this.styles = new StyleManager();
-		const stored = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data = (await this.loadData()) as Partial<PluginSettings> | null;
+		const stored: PluginSettings = Object.assign({}, DEFAULT_SETTINGS, data);
 		// Guard against a hand-edited/corrupted data.json feeding NaN into sliders + CSS
 		for (const key of ['paddingX', 'paddingY', 'borderRadius', 'cardPaddingX', 'cardPaddingY', 'cardBorderRadius'] as const) {
 			if (!Number.isFinite(stored[key]) || stored[key] < 0) stored[key] = DEFAULT_SETTINGS[key];
@@ -79,7 +80,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 			this.app.workspace.on('active-leaf-change', (leaf) => {
 				if (!leaf) return;
 				if (leaf.view?.getViewType() === 'bases') {
-					this.activateLeaf(leaf);
+					void this.activateLeaf(leaf);
 				} else if (leaf.view instanceof MarkdownView) {
 					this.activateEmbedLeaf(leaf);
 				}
@@ -109,8 +110,8 @@ export default class BasesTagColorsPlugin extends Plugin {
 				const timer = window.setTimeout(() => {
 					this.colorsModifyDebounce.delete(file.path);
 					const basePath = basePathFromColorsPath(file.path);
-					this.applyToBase(basePath);
-					this.reloadPropertyConfigs();
+					void this.applyToBase(basePath);
+					void this.reloadPropertyConfigs();
 				}, 100);
 
 				this.colorsModifyDebounce.set(file.path, timer);
@@ -226,7 +227,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 
 		// Activate new ones
 		for (const leaf of current) {
-			if (!this.activeLeaves.has(leaf)) this.activateLeaf(leaf);
+			if (!this.activeLeaves.has(leaf)) void this.activateLeaf(leaf);
 		}
 
 		// Same dance for markdown leaves, which may hold embedded bases
@@ -236,7 +237,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		}
 		for (const leaf of mdCurrent) {
 			if (this.embedLeaves.has(leaf)) {
-				this.refreshEmbedLeaf(leaf);
+				void this.refreshEmbedLeaf(leaf);
 			} else {
 				this.activateEmbedLeaf(leaf);
 			}
@@ -251,7 +252,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 	// hold an embed would miss both.
 	private activateEmbedLeaf(leaf: WorkspaceLeaf): void {
 		if (this.embedLeaves.has(leaf)) {
-			this.refreshEmbedLeaf(leaf);
+			void this.refreshEmbedLeaf(leaf);
 			return;
 		}
 		const view = leaf.view;
@@ -259,12 +260,12 @@ export default class BasesTagColorsPlugin extends Plugin {
 
 		const observer = new MutationObserver((mutations) => {
 			if (mutationsAddMatching(mutations, PILL_SELECTOR) || mutationsAddBasesEmbeds(mutations)) {
-				this.refreshEmbedLeaf(leaf);
+				void this.refreshEmbedLeaf(leaf);
 			}
 		});
 		observer.observe(view.containerEl, { childList: true, subtree: true });
 		this.embedLeaves.set(leaf, { observer });
-		this.refreshEmbedLeaf(leaf);
+		void this.refreshEmbedLeaf(leaf);
 	}
 
 	private deactivateEmbedLeaf(leaf: WorkspaceLeaf): void {
@@ -372,7 +373,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		for (const state of this.activeLeaves.values()) {
 			this.refreshView(state.rootEl, state.basePath);
 		}
-		for (const leaf of this.embedLeaves.keys()) this.refreshEmbedLeaf(leaf);
+		for (const leaf of this.embedLeaves.keys()) void this.refreshEmbedLeaf(leaf);
 		// Properties pills re-collect too — without this they stay uncolored
 		// after an off→on flip until some unrelated DOM mutation fires
 		if (this.settings.propertiesColor) this.processPropertyPills();
@@ -405,7 +406,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		});
 		this.propsObserver.observe(document.body, { childList: true, subtree: true });
 		this.processPropertyPills();
-		this.reloadPropertyConfigs();
+		void this.reloadPropertyConfigs();
 	}
 
 	private stopPropertiesColoring(): void {

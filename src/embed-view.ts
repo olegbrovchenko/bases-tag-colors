@@ -28,7 +28,7 @@ export function tagEmbeds(
 		const linkpath = src.split('#')[0];
 		const file = app.metadataCache.getFirstLinkpathDest(linkpath, sourcePath);
 		if (!file) return;
-		const rootEl = (embedEl.querySelector('.bases-view') as HTMLElement | null) ?? embedEl;
+		const rootEl = embedEl.querySelector<HTMLElement>('.bases-view') ?? embedEl;
 		rootEl.setAttribute('data-bases-tag-colors-id', file.path);
 		const list = roots.get(file.path);
 		if (list) {

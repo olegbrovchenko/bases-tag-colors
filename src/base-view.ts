@@ -23,7 +23,7 @@ export function tagLeaf(leaf: WorkspaceLeaf, basePath: string): HTMLElement | nu
 	const containerEl = view.containerEl;
 	if (!containerEl) return null;
 
-	const basesView = containerEl.querySelector('.bases-view') as HTMLElement | null;
+	const basesView = containerEl.querySelector<HTMLElement>('.bases-view');
 	if (!basesView) console.warn('[BasesTagColors] .bases-view selector not found — Obsidian Bases DOM may have changed');
 	const rootEl = basesView ?? containerEl;
 	rootEl.setAttribute('data-bases-tag-colors-id', basePath);

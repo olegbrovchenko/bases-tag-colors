@@ -139,7 +139,7 @@ async function loadConfig(app, basePath) {
       return { ...DEFAULT_COLOR_CONFIG };
     const raw = await app.vault.adapter.read(colorsPath);
     const parsed = JSON.parse(raw);
-    if (parsed.version !== 1)
+    if ((parsed == null ? void 0 : parsed.version) !== 1)
       return { ...DEFAULT_COLOR_CONFIG };
     if (typeof parsed.columns !== "object" || parsed.columns === null || Array.isArray(parsed.columns)) {
       return { ...DEFAULT_COLOR_CONFIG };
@@ -332,7 +332,8 @@ var StyleManager = class {
   setPropertyColors(configs) {
     const merged = /* @__PURE__ */ new Map();
     for (const config of configs) {
-      for (const [col, values] of parseColumns(config).entries()) {
+      for (const [baseCol, values] of parseColumns(config).entries()) {
+        const col = baseCol.startsWith("note.") ? baseCol.slice(5) : baseCol;
         let target = merged.get(col);
         if (!target) {
           target = /* @__PURE__ */ new Map();
@@ -476,7 +477,7 @@ function processBaseView(viewRoot) {
 var import_obsidian = require("obsidian");
 async function cmdOpenColorConfig(app) {
   var _a, _b;
-  const leaf = app.workspace.activeLeaf;
+  const leaf = app.workspace.getMostRecentLeaf();
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
     new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
@@ -503,7 +504,7 @@ async function cmdOpenColorConfig(app) {
 }
 async function cmdSeedFromCurrentBase(app) {
   var _a, _b;
-  const leaf = app.workspace.activeLeaf;
+  const leaf = app.workspace.getMostRecentLeaf();
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
     new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
@@ -537,7 +538,7 @@ async function cmdSeedFromCurrentBase(app) {
 }
 async function cmdReloadColorConfig(app, applyToBase) {
   var _a;
-  const leaf = app.workspace.activeLeaf;
+  const leaf = app.workspace.getMostRecentLeaf();
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
     new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
@@ -552,7 +553,7 @@ async function cmdReloadColorConfig(app, applyToBase) {
 }
 async function cmdMigrateFromOldPlugin(app, applyToBase) {
   var _a, _b, _c;
-  const leaf = app.workspace.activeLeaf;
+  const leaf = app.workspace.getMostRecentLeaf();
   if (!leaf || ((_a = leaf.view) == null ? void 0 : _a.getViewType()) !== "bases") {
     new import_obsidian.Notice("Bases Tag Colors: open a .base file first");
     return;
@@ -562,7 +563,7 @@ async function cmdMigrateFromOldPlugin(app, applyToBase) {
     new import_obsidian.Notice("Bases Tag Colors: could not resolve base file path");
     return;
   }
-  const oldDataPath = ".obsidian/plugins/colored-bases-properties/data.json";
+  const oldDataPath = `${app.vault.configDir}/plugins/colored-bases-properties/data.json`;
   const oldExists = await app.vault.adapter.exists(oldDataPath);
   if (!oldExists) {
     new import_obsidian.Notice("Bases Tag Colors: colored-bases-properties not found \u2014 nothing to migrate");
@@ -626,10 +627,13 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     if (this.shapeSaveTimer !== null) {
       window.clearTimeout(this.shapeSaveTimer);
       this.shapeSaveTimer = null;
-      this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     }
   }
-  async display() {
+  display() {
+    void this.render();
+  }
+  async render() {
     var _a;
     const { containerEl } = this;
     containerEl.empty();
@@ -650,16 +654,16 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       placeholder: "Search values\u2026",
       cls: "blc-search"
     });
-    containerEl.createEl("div", { text: "Colors", cls: "blc-section-label" });
+    containerEl.createDiv({ text: "Colors", cls: "blc-section-label" });
     const listEl = containerEl.createDiv({ cls: "blc-list" });
-    containerEl.createEl("div", { text: "Add value", cls: "blc-section-label" });
+    containerEl.createDiv({ text: "Add value", cls: "blc-section-label" });
     const addRowEl = containerEl.createDiv({ cls: "blc-add-row" });
     this.buildAddRow(addRowEl, listEl);
-    containerEl.createEl("div", { text: "Pill shape", cls: "blc-section-label" });
+    containerEl.createDiv({ text: "Pill shape", cls: "blc-section-label" });
     this.buildShapeSection(containerEl, listEl);
-    containerEl.createEl("div", { text: "Cards and Kanban", cls: "blc-section-label" });
+    containerEl.createDiv({ text: "Cards and Kanban", cls: "blc-section-label" });
     this.buildCardsSection(containerEl);
-    containerEl.createEl("div", { text: "Auto color", cls: "blc-section-label" });
+    containerEl.createDiv({ text: "Auto color", cls: "blc-section-label" });
     new import_obsidian2.Setting(containerEl).setName("Auto-color unconfigured values").setDesc("Values without a configured color get a consistent generated one. Your configured colors always win.").addToggle((t) => t.setValue(this.plugin.settings.autoColor).onChange(async (v) => {
       this.plugin.settings.autoColor = v;
       await this.plugin.saveSettings();
@@ -676,7 +680,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       importBtn.disabled = true;
       return;
     }
-    const activeLeaf = this.app.workspace.activeLeaf;
+    const activeLeaf = this.app.workspace.getMostRecentLeaf();
     const activeBase = activeLeaf ? getBasePath(activeLeaf) : null;
     for (const b of bases) {
       const opt = select.createEl("option", { text: b, value: b });
@@ -687,20 +691,20 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     select.value = this.selectedBase;
     this.config = await loadConfig(this.app, this.selectedBase);
     this.renderValueList(listEl);
-    select.addEventListener("change", async () => {
+    select.addEventListener("change", () => void (async () => {
       this.selectedBase = select.value;
       this.config = await loadConfig(this.app, this.selectedBase);
       this.searchQuery = "";
       searchInput.value = "";
       this.renderValueList(listEl);
-    });
+    })());
     searchInput.addEventListener("input", () => {
       this.searchQuery = searchInput.value.toLowerCase();
       this.filterRows(listEl);
     });
-    importBtn.addEventListener("click", async () => {
+    importBtn.addEventListener("click", () => void (async () => {
       var _a2, _b;
-      const leaf = this.app.workspace.activeLeaf;
+      const leaf = this.app.workspace.getMostRecentLeaf();
       if (!leaf || ((_a2 = leaf.view) == null ? void 0 : _a2.getViewType()) !== "bases") {
         importBtn.title = "No bases view open";
         return;
@@ -731,15 +735,15 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       }
       await this.saveAndApply();
       this.renderValueList(listEl);
-    });
-    refreshBtn.addEventListener("click", async () => {
+    })());
+    refreshBtn.addEventListener("click", () => void (async () => {
       if (!this.selectedBase)
         return;
       this.config = await loadConfig(this.app, this.selectedBase);
       this.renderValueList(listEl);
       await this.plugin.applyToBase(this.selectedBase);
       new import_obsidian2.Notice("Bases Tag Colors: refreshed");
-    });
+    })());
     this.updateImportBtnState(importBtn);
     containerEl.createEl("hr", { cls: "blc-landing-divider" });
     const featuresSection = containerEl.createDiv({ cls: "blc-features" });
@@ -766,10 +770,10 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     dotsWrap.createDiv({ cls: "blc-dot blc-dot-red" });
     dotsWrap.createDiv({ cls: "blc-dot blc-dot-yellow" });
     dotsWrap.createDiv({ cls: "blc-dot blc-dot-green" });
-    windowChrome.createEl("span", { text: "YouTube Ideas.base", cls: "blc-window-title" });
+    windowChrome.createSpan({ text: "YouTube Ideas.base", cls: "blc-window-title" });
     const img = windowFrame.createEl("img", { cls: "blc-preview-img", attr: { alt: "Bases Tag Colors in action" } });
     img.onerror = () => previewSection.remove();
-    const pluginDir = (_a = this.plugin.manifest.dir) != null ? _a : ".obsidian/plugins/bases-tag-colors";
+    const pluginDir = (_a = this.plugin.manifest.dir) != null ? _a : `${this.app.vault.configDir}/plugins/bases-tag-colors`;
     img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
     containerEl.createEl("p", { text: "Enjoy! \u2014 Oleg Brovchenko", cls: "blc-signoff" });
   }
@@ -845,7 +849,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       window.clearTimeout(this.shapeSaveTimer);
     this.shapeSaveTimer = window.setTimeout(() => {
       this.shapeSaveTimer = null;
-      this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     }, 150);
   }
   applyPreviewShape(listEl) {
@@ -863,7 +867,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
   }
   updateImportBtnState(btn) {
     var _a;
-    const leaf = this.app.workspace.activeLeaf;
+    const leaf = this.app.workspace.getMostRecentLeaf();
     const isBasesView = ((_a = leaf == null ? void 0 : leaf.view) == null ? void 0 : _a.getViewType()) === "bases";
     btn.disabled = !isBasesView;
     btn.title = isBasesView ? "Import all visible pill values from the active base" : "No bases view open";
@@ -903,9 +907,9 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     const row = listEl.createDiv({ cls: "blc-row" });
     row.dataset.col = col;
     row.dataset.value = rawValue.toLowerCase();
-    const pillPreview = row.createEl("span", { text: rawValue, cls: "blc-pill-preview" });
+    const pillPreview = row.createSpan({ text: rawValue, cls: "blc-pill-preview" });
     pillPreview.setCssStyles({ backgroundColor: color });
-    row.createEl("span", { text: col === "*" ? "any column" : col, cls: "blc-col-badge" });
+    row.createSpan({ text: col === "*" ? "any column" : col, cls: "blc-col-badge" });
     row.createDiv({ cls: "blc-spacer" });
     const picker = row.createEl("input", { cls: "blc-color-picker" });
     picker.type = "color";
@@ -928,16 +932,16 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
         picker.value = val;
         pillPreview.setCssStyles({ backgroundColor: val });
         this.setColor(col, rawValue, val);
-        this.saveAndApply();
+        void this.saveAndApply();
       } else {
         hexInput.value = picker.value;
       }
     });
-    removeBtn.addEventListener("click", async () => {
+    removeBtn.addEventListener("click", () => void (async () => {
       this.deleteColor(col, rawValue);
       await this.saveAndApply();
       row.remove();
-    });
+    })());
   }
   buildAddRow(addRowEl, listEl) {
     const nameInput = addRowEl.createEl("input", { cls: "blc-add-name" });
@@ -962,7 +966,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       }
     });
     const addBtn = addRowEl.createEl("button", { text: "+ Add", cls: "blc-add-btn" });
-    addBtn.addEventListener("click", async () => {
+    addBtn.addEventListener("click", () => void (async () => {
       const name = nameInput.value.trim();
       if (!name)
         return;
@@ -976,7 +980,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       nameInput.value = "";
       picker.value = "#78b7b8";
       hexInput.value = "#78b7b8";
-    });
+    })());
   }
   filterRows(listEl) {
     const q = this.searchQuery;
@@ -1006,7 +1010,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       window.clearTimeout(this.debounceTimer);
     this.debounceTimer = window.setTimeout(() => {
       this.debounceTimer = null;
-      this.saveAndApply();
+      void this.saveAndApply();
     }, 150);
   }
   async saveAndApply() {
@@ -1049,7 +1053,8 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   }
   async onload() {
     this.styles = new StyleManager();
-    const stored = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = await this.loadData();
+    const stored = Object.assign({}, DEFAULT_SETTINGS, data);
     for (const key of ["paddingX", "paddingY", "borderRadius", "cardPaddingX", "cardPaddingY", "cardBorderRadius"]) {
       if (!Number.isFinite(stored[key]) || stored[key] < 0)
         stored[key] = DEFAULT_SETTINGS[key];
@@ -1068,7 +1073,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
         if (!leaf)
           return;
         if (((_a = leaf.view) == null ? void 0 : _a.getViewType()) === "bases") {
-          this.activateLeaf(leaf);
+          void this.activateLeaf(leaf);
         } else if (leaf.view instanceof import_obsidian3.MarkdownView) {
           this.activateEmbedLeaf(leaf);
         }
@@ -1096,8 +1101,8 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
         const timer = window.setTimeout(() => {
           this.colorsModifyDebounce.delete(file.path);
           const basePath = basePathFromColorsPath(file.path);
-          this.applyToBase(basePath);
-          this.reloadPropertyConfigs();
+          void this.applyToBase(basePath);
+          void this.reloadPropertyConfigs();
         }, 100);
         this.colorsModifyDebounce.set(file.path, timer);
       })
@@ -1186,7 +1191,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     }
     for (const leaf of current) {
       if (!this.activeLeaves.has(leaf))
-        this.activateLeaf(leaf);
+        void this.activateLeaf(leaf);
     }
     const mdCurrent = new Set(this.app.workspace.getLeavesOfType("markdown"));
     for (const leaf of [...this.embedLeaves.keys()]) {
@@ -1195,7 +1200,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     }
     for (const leaf of mdCurrent) {
       if (this.embedLeaves.has(leaf)) {
-        this.refreshEmbedLeaf(leaf);
+        void this.refreshEmbedLeaf(leaf);
       } else {
         this.activateEmbedLeaf(leaf);
       }
@@ -1208,7 +1213,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
   // hold an embed would miss both.
   activateEmbedLeaf(leaf) {
     if (this.embedLeaves.has(leaf)) {
-      this.refreshEmbedLeaf(leaf);
+      void this.refreshEmbedLeaf(leaf);
       return;
     }
     const view = leaf.view;
@@ -1216,12 +1221,12 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       return;
     const observer = new MutationObserver((mutations) => {
       if (mutationsAddMatching(mutations, PILL_SELECTOR) || mutationsAddBasesEmbeds(mutations)) {
-        this.refreshEmbedLeaf(leaf);
+        void this.refreshEmbedLeaf(leaf);
       }
     });
     observer.observe(view.containerEl, { childList: true, subtree: true });
     this.embedLeaves.set(leaf, { observer });
-    this.refreshEmbedLeaf(leaf);
+    void this.refreshEmbedLeaf(leaf);
   }
   deactivateEmbedLeaf(leaf) {
     const state = this.embedLeaves.get(leaf);
@@ -1321,7 +1326,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
       this.refreshView(state.rootEl, state.basePath);
     }
     for (const leaf of this.embedLeaves.keys())
-      this.refreshEmbedLeaf(leaf);
+      void this.refreshEmbedLeaf(leaf);
     if (this.settings.propertiesColor)
       this.processPropertyPills();
   }
@@ -1351,7 +1356,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     });
     this.propsObserver.observe(document.body, { childList: true, subtree: true });
     this.processPropertyPills();
-    this.reloadPropertyConfigs();
+    void this.reloadPropertyConfigs();
   }
   stopPropertiesColoring() {
     if (!this.propsObserver)
