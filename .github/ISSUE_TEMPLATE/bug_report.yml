@@ -1,5 +1,5 @@
 name: Bug report
-description: Something's broken: colors not showing, plugin crash, weird behavior
+description: "Something's broken: colors not showing, plugin crash, weird behavior"
 title: "[Bug] "
 labels: ["bug"]
 body:
