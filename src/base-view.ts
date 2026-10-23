@@ -1,4 +1,4 @@
-import { App, WorkspaceLeaf, View } from 'obsidian';
+import { WorkspaceLeaf, View } from 'obsidian';
 
 // Obsidian's Bases view has a `file` property but the generic View type doesn't declare it.
 interface BasesViewLike extends View {
@@ -39,15 +39,4 @@ export function untagLeaf(leaf: WorkspaceLeaf): void {
 		.querySelectorAll('[data-bases-tag-colors-id]')
 		.forEach(el => el.removeAttribute('data-bases-tag-colors-id'));
 	containerEl.removeAttribute('data-bases-tag-colors-id');
-}
-
-export function tagAllBasesLeaves(app: App): void {
-	for (const leaf of app.workspace.getLeavesOfType('bases')) {
-		const basePath = getBasePath(leaf);
-		if (basePath) {
-			tagLeaf(leaf, basePath);
-		} else {
-			console.warn('[BasesTagColors] bases leaf found but path unavailable');
-		}
-	}
 }
