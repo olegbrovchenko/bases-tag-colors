@@ -169,7 +169,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 			return;
 		}
 
-		// Already tracking this exact leaf instance — just re-apply
+		// Already tracking this exact leaf instance: just re-apply
 		const existing = this.activeLeaves.get(leaf);
 		if (existing && existing.basePath === basePath) {
 			await this.applyToBase(basePath);
@@ -185,7 +185,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 		const config = await loadConfig(this.app, basePath);
 
 		// A concurrent activation (active-leaf-change + debounced layout-change)
-		// may have finished while we awaited — a second observer here would leak.
+		// may have finished while we awaited; a second observer here would leak.
 		const raced = this.activeLeaves.get(leaf);
 		if (raced && raced.basePath === basePath) return;
 
@@ -275,7 +275,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 
 		// Only sweep the DOM while the leaf still shows a markdown view. When the
 		// leaf morphed into another view type (e.g. the user opened a base in it),
-		// containerEl belongs to the NEW view — sweeping would strip the tag the
+		// containerEl belongs to the NEW view, so sweeping would strip the tag the
 		// bases activation just wrote. The old markdown DOM is discarded anyway.
 		const containerEl = leaf.view instanceof MarkdownView ? leaf.view.containerEl : null;
 		if (containerEl) {
@@ -335,7 +335,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 	}
 
 	// D3: re-apply styles + re-process pills for all leaves showing basePath.
-	// Re-queries rootEl on every call — guards against DOM refresh (e.g. after Settings close).
+	// Re-queries rootEl on every call: guards against DOM refresh (e.g. after Settings close).
 	async applyToBase(basePath: string): Promise<void> {
 		const config = await loadConfig(this.app, basePath);
 		this.styles.setColorsForBase(basePath, config);
@@ -344,7 +344,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 			const freshRoot = tagLeaf(leaf, basePath);
 			if (!freshRoot) continue;
 			if (freshRoot !== state.rootEl) {
-				// DOM was refreshed — reconnect MutationObserver to new element
+				// DOM was refreshed: reconnect MutationObserver to new element
 				state.observer.disconnect();
 				state.rootEl = freshRoot;
 				state.observer = this.createPillObserver(freshRoot, basePath);
@@ -374,7 +374,7 @@ export default class BasesTagColorsPlugin extends Plugin {
 			this.refreshView(state.rootEl, state.basePath);
 		}
 		for (const leaf of this.embedLeaves.keys()) void this.refreshEmbedLeaf(leaf);
-		// Properties pills re-collect too — without this they stay uncolored
+		// Properties pills re-collect too: without this they stay uncolored
 		// after an off→on flip until some unrelated DOM mutation fires
 		if (this.settings.propertiesColor) this.processPropertyPills();
 	}

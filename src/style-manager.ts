@@ -57,7 +57,7 @@ function parseColumns(config: ColorConfig): ColumnColors {
 export class StyleManager {
 	private configByBase: Map<string, ColumnColors> = new Map();
 	// basePath → (sanitized value → generated color); a configured color always
-	// wins over these — precedence is explicit in resolveBaseColor
+	// wins over these; precedence is explicit in resolveBaseColor
 	private autoColorsByBase: Map<string, ValueColors> = new Map();
 	// Note Properties panel: configured colors (merged across all bases) + auto colors
 	private propertyConfig: ColumnColors = new Map();
@@ -69,8 +69,8 @@ export class StyleManager {
 	}
 
 	// Global pill shape (padding / border-radius), applied to ALL pills inside
-	// tagged bases views — and the note Properties panel when that coloring is
-	// on — so rows stay uniform whether or not a pill is colored. The rules live
+	// tagged bases views (and the note Properties panel when that coloring is
+	// on), so rows stay uniform whether or not a pill is colored. The rules live
 	// in styles.css, gated on body classes; only the three size variables are
 	// set here. They zero Obsidian's --pill-padding-x on purpose: core feeds it
 	// into the content's margin-inline-start AND the remove button's
@@ -111,7 +111,7 @@ export class StyleManager {
 	}
 
 	// Register newly-seen pill values for a base; generates a stable hash color
-	// for each. On new values, repaints EVERY view of the base — a second pane
+	// for each. On new values, repaints EVERY view of the base: a second pane
 	// showing the same base must pick them up now, not on its next mutation.
 	addAutoValuesForBase(basePath: string, sanitizedValues: string[]): void {
 		let colors = this.autoColorsByBase.get(basePath);

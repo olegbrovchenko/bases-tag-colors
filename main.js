@@ -58,7 +58,7 @@ function tagLeaf(leaf, basePath) {
     return null;
   const basesView = containerEl.querySelector(".bases-view");
   if (!basesView)
-    console.warn("[BasesTagColors] .bases-view selector not found \u2014 Obsidian Bases DOM may have changed");
+    console.warn("[BasesTagColors] .bases-view selector not found, Obsidian Bases DOM may have changed");
   const rootEl = basesView != null ? basesView : containerEl;
   rootEl.setAttribute("data-bases-tag-colors-id", basePath);
   return rootEl;
@@ -254,7 +254,7 @@ var StyleManager = class {
   constructor() {
     this.configByBase = /* @__PURE__ */ new Map();
     // basePath → (sanitized value → generated color); a configured color always
-    // wins over these — precedence is explicit in resolveBaseColor
+    // wins over these; precedence is explicit in resolveBaseColor
     this.autoColorsByBase = /* @__PURE__ */ new Map();
     // Note Properties panel: configured colors (merged across all bases) + auto colors
     this.propertyConfig = /* @__PURE__ */ new Map();
@@ -265,8 +265,8 @@ var StyleManager = class {
     this.repaintBase(basePath);
   }
   // Global pill shape (padding / border-radius), applied to ALL pills inside
-  // tagged bases views — and the note Properties panel when that coloring is
-  // on — so rows stay uniform whether or not a pill is colored. The rules live
+  // tagged bases views (and the note Properties panel when that coloring is
+  // on), so rows stay uniform whether or not a pill is colored. The rules live
   // in styles.css, gated on body classes; only the three size variables are
   // set here. They zero Obsidian's --pill-padding-x on purpose: core feeds it
   // into the content's margin-inline-start AND the remove button's
@@ -302,7 +302,7 @@ var StyleManager = class {
     this.repaintBase(basePath);
   }
   // Register newly-seen pill values for a base; generates a stable hash color
-  // for each. On new values, repaints EVERY view of the base — a second pane
+  // for each. On new values, repaints EVERY view of the base: a second pane
   // showing the same base must pick them up now, not on its next mutation.
   addAutoValuesForBase(basePath, sanitizedValues) {
     let colors = this.autoColorsByBase.get(basePath);
@@ -565,7 +565,7 @@ async function cmdMigrateFromOldPlugin(app, applyToBase) {
   const oldDataPath = `${app.vault.configDir}/plugins/colored-bases-properties/data.json`;
   const oldExists = await app.vault.adapter.exists(oldDataPath);
   if (!oldExists) {
-    new import_obsidian.Notice("Bases Tag Colors: colored-bases-properties not found \u2014 nothing to migrate");
+    new import_obsidian.Notice("Bases Tag Colors: colored-bases-properties not found, nothing to migrate");
     return;
   }
   let oldPillColors = {};
@@ -648,7 +648,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     const select = selectorWrapper.createEl("select", { cls: "blc-base-select" });
     const importBtn = headerEl.createEl("button", { text: "Import from active base", cls: "blc-import-btn mod-cta" });
     const refreshBtn = headerEl.createEl("button", { text: "Refresh", cls: "blc-refresh-btn" });
-    refreshBtn.title = "Re-read the colors file and repaint \u2014 changes nothing on disk";
+    refreshBtn.title = "Re-read the colors file and repaint (changes nothing on disk)";
     const searchInput = containerEl.createEl("input", {
       type: "text",
       placeholder: "Search values\u2026",
@@ -711,7 +711,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
       }
       const activeBase2 = getBasePath(leaf);
       if (activeBase2 !== this.selectedBase) {
-        importBtn.title = `Active base doesn't match \u2014 open "${this.selectedBase}" first`;
+        importBtn.title = `Active base doesn't match: open "${this.selectedBase}" first`;
         new import_obsidian2.Notice(`Import aborted: active view is a different base. Click the "${this.selectedBase}" tab first.`);
         return;
       }
@@ -775,11 +775,11 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     img.onerror = () => previewSection.remove();
     const pluginDir = (_a = this.plugin.manifest.dir) != null ? _a : `${this.app.vault.configDir}/plugins/bases-tag-colors`;
     img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
-    containerEl.createEl("p", { text: "Enjoy! \u2014 Oleg Brovchenko", cls: "blc-signoff" });
+    containerEl.createEl("p", { text: "Enjoy! - Oleg Brovchenko", cls: "blc-signoff" });
   }
   // Global pill shape controls: toggle + sliders, applied live to all bases views
   // and mirrored on the pill previews in the color list above.
-  // Sliders fire per drag tick — styles apply immediately, disk write is debounced.
+  // Sliders fire per drag tick: styles apply immediately, disk write is debounced.
   buildShapeSection(containerEl, listEl) {
     const shape = this.plugin.settings;
     new import_obsidian2.Setting(containerEl).setName("Customize pill shape").setDesc("Notion-style pill shape for Bases views: comfortable padding, mid-hard corners. Turn off to use your theme's default shape.").addToggle((t) => t.setValue(shape.customShape).onChange(async (v) => {
@@ -1289,7 +1289,7 @@ var BasesTagColorsPlugin = class extends import_obsidian3.Plugin {
     }
   }
   // D3: re-apply styles + re-process pills for all leaves showing basePath.
-  // Re-queries rootEl on every call — guards against DOM refresh (e.g. after Settings close).
+  // Re-queries rootEl on every call: guards against DOM refresh (e.g. after Settings close).
   async applyToBase(basePath) {
     const config = await loadConfig(this.app, basePath);
     this.styles.setColorsForBase(basePath, config);

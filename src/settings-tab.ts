@@ -54,7 +54,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		const select = selectorWrapper.createEl('select', { cls: 'blc-base-select' });
 		const importBtn = headerEl.createEl('button', { text: 'Import from active base', cls: 'blc-import-btn mod-cta' });
 		const refreshBtn = headerEl.createEl('button', { text: 'Refresh', cls: 'blc-refresh-btn' });
-		refreshBtn.title = 'Re-read the colors file and repaint — changes nothing on disk';
+		refreshBtn.title = 'Re-read the colors file and repaint (changes nothing on disk)';
 
 		// Search
 		const searchInput = containerEl.createEl('input', {
@@ -148,7 +148,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 			}
 			const activeBase = getBasePath(leaf);
 			if (activeBase !== this.selectedBase) {
-				importBtn.title = `Active base doesn't match — open "${this.selectedBase}" first`;
+				importBtn.title = `Active base doesn't match: open "${this.selectedBase}" first`;
 				new Notice(`Import aborted: active view is a different base. Click the "${this.selectedBase}" tab first.`);
 				return;
 			}
@@ -206,7 +206,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		problemSection.createEl('p', { text: 'THE PROBLEM', cls: 'blc-section-eyebrow' });
 		problemSection.createEl('p', { text: 'Obsidian Bases have zero native pill colors. It makes reading extremely hard, especially annoying if you are coming from Notion and you are used to having colors on your tags.', cls: 'blc-text-body' });
 
-		// Preview — Mac window chrome
+		// Preview: Mac window chrome
 		const previewSection = containerEl.createDiv({ cls: 'blc-text-section' });
 		previewSection.createEl('p', { text: 'PREVIEW', cls: 'blc-section-eyebrow' });
 		const windowFrame = previewSection.createDiv({ cls: 'blc-window-frame' });
@@ -217,20 +217,20 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		dotsWrap.createDiv({ cls: 'blc-dot blc-dot-green' });
 		windowChrome.createSpan({ text: 'YouTube Ideas.base', cls: 'blc-window-title' });
 		const img = windowFrame.createEl('img', { cls: 'blc-preview-img', attr: { alt: 'Bases Tag Colors in action' } });
-		// preview.png only exists in manual/dev installs — the community store ships
+		// preview.png only exists in manual/dev installs; the community store ships
 		// just main.js/manifest.json/styles.css. Without it, drop the whole section
 		// instead of showing a broken image box.
 		img.onerror = () => previewSection.remove();
 		const pluginDir = (this.plugin.manifest as { dir?: string }).dir ?? `${this.app.vault.configDir}/plugins/bases-tag-colors`;
 		img.src = this.app.vault.adapter.getResourcePath(`${pluginDir}/preview.png`);
 
-		// Sign-off — last element
-		containerEl.createEl('p', { text: 'Enjoy! — Oleg Brovchenko', cls: 'blc-signoff' });
+		// Sign-off: last element
+		containerEl.createEl('p', { text: 'Enjoy! - Oleg Brovchenko', cls: 'blc-signoff' });
 	}
 
 	// Global pill shape controls: toggle + sliders, applied live to all bases views
 	// and mirrored on the pill previews in the color list above.
-	// Sliders fire per drag tick — styles apply immediately, disk write is debounced.
+	// Sliders fire per drag tick: styles apply immediately, disk write is debounced.
 	private buildShapeSection(containerEl: HTMLElement, listEl: HTMLElement): void {
 		const shape = this.plugin.settings;
 
@@ -377,7 +377,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		}
 
 		// Deduplicate: if a rawValue exists under both '*' and a specific column,
-		// suppress the '*' entry — the specific column is more informative and wins in CSS.
+		// suppress the '*' entry; the specific column is more informative and wins in CSS.
 		const valuesWithSpecificCol = new Set(
 			entries.filter(e => e.col !== '*').map(e => e.rawValue)
 		);
@@ -409,7 +409,7 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		row.dataset.col = col;
 		row.dataset.value = rawValue.toLowerCase();
 
-		// Pill preview — mirrors real Bases pill appearance
+		// Pill preview: mirrors real Bases pill appearance
 		const pillPreview = row.createSpan({ text: rawValue, cls: 'blc-pill-preview' });
 		pillPreview.setCssStyles({ backgroundColor: color });
 

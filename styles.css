@@ -1,4 +1,4 @@
-/* Bases Tag Colors — static base styles */
+/* Bases Tag Colors: static base styles */
 .multi-select-pill[data-blc-value],
 .bases-cards-line .value-list-element[data-blc-value],
 .bases-kanban-card-line .value-list-element[data-blc-value] {
@@ -188,7 +188,7 @@ body.blc-shape.blc-shape-props .metadata-property .multi-select-pill .multi-sele
 	text-align: center;
 }
 
-/* Preview — Mac window chrome */
+/* Preview: Mac window chrome */
 .blc-window-frame {
 	border-radius: 10px;
 	overflow: hidden;
@@ -358,7 +358,7 @@ body.blc-shape.blc-shape-props .metadata-property .multi-select-pill .multi-sele
 	background: var(--background-modifier-hover);
 }
 
-/* Pill preview — mirrors real Bases pill appearance */
+/* Pill preview: mirrors real Bases pill appearance */
 .blc-pill-preview {
 	flex: 0 0 auto;
 	min-width: 70px;

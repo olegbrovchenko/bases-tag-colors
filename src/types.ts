@@ -15,7 +15,7 @@ export function emptyColorConfig(): ColorConfig {
 	return { version: 1, columns: {} };
 }
 
-// Global (per-vault) settings, stored in the plugin's data.json —
+// Global (per-vault) settings, stored in the plugin's data.json,
 // not in .colors.json, which stays per-base color data only.
 export interface PluginSettings {
 	customShape: boolean;

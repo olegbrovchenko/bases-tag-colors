@@ -27,7 +27,7 @@ export async function cmdOpenColorConfig(app: App): Promise<void> {
 	try {
 		await app.workspace.openLinkText(colorsPath, '', false);
 	} catch {
-		// Vaults without a JSON-capable view can't open it in-app — hand to the OS
+		// Vaults without a JSON-capable view can't open it in-app, so hand it to the OS
 		const appWithDefault = app as App & { openWithDefaultApp?: (path: string) => Promise<void> };
 		await appWithDefault.openWithDefaultApp?.(colorsPath);
 	}
@@ -52,7 +52,7 @@ export async function cmdSeedFromCurrentBase(app: App): Promise<void> {
 	const rootEl =
 		containerEl.querySelector<HTMLElement>('.bases-view') ?? containerEl;
 
-	// Merge into the existing config — a seed must never wipe hand-tuned colors
+	// Merge into the existing config: a seed must never wipe hand-tuned colors
 	const seeded = seedConfigFromView(rootEl);
 	const existing = await loadConfig(app, basePath);
 	let added = 0;
@@ -109,7 +109,7 @@ export async function cmdMigrateFromOldPlugin(
 	const oldDataPath = `${app.vault.configDir}/plugins/colored-bases-properties/data.json`;
 	const oldExists = await app.vault.adapter.exists(oldDataPath);
 	if (!oldExists) {
-		new Notice('Bases Tag Colors: colored-bases-properties not found — nothing to migrate');
+		new Notice('Bases Tag Colors: colored-bases-properties not found, nothing to migrate');
 		return;
 	}
 
