@@ -622,6 +622,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
     if (this.debounceTimer !== null) {
       window.clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
+      void this.saveAndApply();
     }
     if (this.shapeSaveTimer !== null) {
       window.clearTimeout(this.shapeSaveTimer);

@@ -21,6 +21,8 @@ export class BasesTagColorsSettingTab extends PluginSettingTab {
 		if (this.debounceTimer !== null) {
 			window.clearTimeout(this.debounceTimer);
 			this.debounceTimer = null;
+			// Same for a color picked right before closing
+			void this.saveAndApply();
 		}
 		if (this.shapeSaveTimer !== null) {
 			window.clearTimeout(this.shapeSaveTimer);
