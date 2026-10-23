@@ -102,10 +102,9 @@ function tagEmbeds(app, containerEl, sourcePath) {
 }
 
 // src/types.ts
-var DEFAULT_COLOR_CONFIG = {
-  version: 1,
-  columns: {}
-};
+function emptyColorConfig() {
+  return { version: 1, columns: {} };
+}
 var DEFAULT_SETTINGS = {
   customShape: true,
   paddingX: 6,
@@ -136,18 +135,18 @@ async function loadConfig(app, basePath) {
   try {
     const exists = await app.vault.adapter.exists(colorsPath);
     if (!exists)
-      return { ...DEFAULT_COLOR_CONFIG };
+      return emptyColorConfig();
     const raw = await app.vault.adapter.read(colorsPath);
     const parsed = JSON.parse(raw);
     if ((parsed == null ? void 0 : parsed.version) !== 1)
-      return { ...DEFAULT_COLOR_CONFIG };
+      return emptyColorConfig();
     if (typeof parsed.columns !== "object" || parsed.columns === null || Array.isArray(parsed.columns)) {
-      return { ...DEFAULT_COLOR_CONFIG };
+      return emptyColorConfig();
     }
     return parsed;
   } catch (e) {
     console.warn(`[BasesTagColors] Failed to load config at ${colorsPath}:`, e);
-    return { ...DEFAULT_COLOR_CONFIG };
+    return emptyColorConfig();
   }
 }
 async function saveConfig(app, basePath, config) {
@@ -186,7 +185,7 @@ async function parseBaseColumns(app, basePath) {
   }
 }
 function seedConfigFromView(viewRoot) {
-  const config = { version: 1, columns: {} };
+  const config = emptyColorConfig();
   viewRoot.querySelectorAll(PILL_SELECTOR).forEach((pill) => {
     var _a;
     const rawText = pillText(pill);
@@ -492,7 +491,7 @@ async function cmdOpenColorConfig(app) {
   if (!exists) {
     await app.vault.adapter.write(
       colorsPath,
-      JSON.stringify(DEFAULT_COLOR_CONFIG, null, 2)
+      JSON.stringify(emptyColorConfig(), null, 2)
     );
   }
   try {
@@ -613,7 +612,7 @@ var BasesTagColorsSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.selectedBase = "";
-    this.config = { version: 1, columns: {} };
+    this.config = emptyColorConfig();
     this.searchQuery = "";
     this.debounceTimer = null;
     this.shapeSaveTimer = null;

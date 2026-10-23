@@ -9,10 +9,11 @@ export interface ColorConfig {
 	};
 }
 
-export const DEFAULT_COLOR_CONFIG: ColorConfig = {
-	version: 1,
-	columns: {}
-};
+// A fresh object on every call: callers mutate `columns` in place, so one
+// shared default would leak one base's colors into every unconfigured base.
+export function emptyColorConfig(): ColorConfig {
+	return { version: 1, columns: {} };
+}
 
 // Global (per-vault) settings, stored in the plugin's data.json —
 // not in .colors.json, which stays per-base color data only.

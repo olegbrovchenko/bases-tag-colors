@@ -1,13 +1,13 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type BasesTagColorsPlugin from '../main';
 import { listBasesInVault, loadConfig, saveConfig, seedConfigFromView, parseBaseColumns } from './config-io';
-import { CARD_PADDING_Y_MAX, ColorConfig } from './types';
+import { CARD_PADDING_Y_MAX, ColorConfig, emptyColorConfig } from './types';
 import { getBasePath } from './base-view';
 
 export class BasesTagColorsSettingTab extends PluginSettingTab {
 	private plugin: BasesTagColorsPlugin;
 	private selectedBase: string = '';
-	private config: ColorConfig = { version: 1, columns: {} };
+	private config: ColorConfig = emptyColorConfig();
 	private searchQuery: string = '';
 	private debounceTimer: number | null = null;
 	private shapeSaveTimer: number | null = null;

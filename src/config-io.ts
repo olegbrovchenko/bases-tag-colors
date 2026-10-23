@@ -1,6 +1,6 @@
 import { App, TFile } from 'obsidian';
 import { PILL_SELECTOR, pillText } from './selectors';
-import { ColorConfig, DEFAULT_COLOR_CONFIG } from './types';
+import { ColorConfig, emptyColorConfig } from './types';
 
 export async function listBasesInVault(app: App): Promise<string[]> {
 	return app.vault.getFiles()
@@ -21,20 +21,20 @@ export async function loadConfig(app: App, basePath: string): Promise<ColorConfi
 	const colorsPath = colorsPathFromBasePath(basePath);
 	try {
 		const exists = await app.vault.adapter.exists(colorsPath);
-		if (!exists) return { ...DEFAULT_COLOR_CONFIG };
+		if (!exists) return emptyColorConfig();
 
 		const raw = await app.vault.adapter.read(colorsPath);
 		const parsed = JSON.parse(raw) as Partial<ColorConfig> | null;
 
-		if (parsed?.version !== 1) return { ...DEFAULT_COLOR_CONFIG };
+		if (parsed?.version !== 1) return emptyColorConfig();
 		if (typeof parsed.columns !== 'object' || parsed.columns === null || Array.isArray(parsed.columns)) {
-			return { ...DEFAULT_COLOR_CONFIG };
+			return emptyColorConfig();
 		}
 
 		return parsed as ColorConfig;
 	} catch (e) {
 		console.warn(`[BasesTagColors] Failed to load config at ${colorsPath}:`, e);
-		return { ...DEFAULT_COLOR_CONFIG };
+		return emptyColorConfig();
 	}
 }
 
@@ -81,7 +81,7 @@ export async function parseBaseColumns(app: App, basePath: string): Promise<Set<
 
 // Walks the rendered view root, collects (column, rawText) pairs, fills placeholder colors.
 export function seedConfigFromView(viewRoot: HTMLElement): ColorConfig {
-	const config: ColorConfig = { version: 1, columns: {} };
+	const config = emptyColorConfig();
 
 	viewRoot.querySelectorAll(PILL_SELECTOR).forEach(pill => {
 		const rawText = pillText(pill);

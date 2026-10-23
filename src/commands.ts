@@ -2,7 +2,7 @@ import { App, Notice } from 'obsidian';
 import { PILL_SELECTOR, pillText } from './selectors';
 import { getBasePath } from './base-view';
 import { colorsPathFromBasePath, loadConfig, saveConfig, seedConfigFromView } from './config-io';
-import { DEFAULT_COLOR_CONFIG } from './types';
+import { emptyColorConfig } from './types';
 
 // Opens the *.colors.json sibling, creating a skeleton if it doesn't exist.
 export async function cmdOpenColorConfig(app: App): Promise<void> {
@@ -21,7 +21,7 @@ export async function cmdOpenColorConfig(app: App): Promise<void> {
 	if (!exists) {
 		await app.vault.adapter.write(
 			colorsPath,
-			JSON.stringify(DEFAULT_COLOR_CONFIG, null, 2)
+			JSON.stringify(emptyColorConfig(), null, 2)
 		);
 	}
 	try {
