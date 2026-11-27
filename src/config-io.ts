@@ -47,8 +47,14 @@ export async function saveConfig(app: App, basePath: string, config: ColorConfig
 	}
 }
 
+// Map key, data attribute and hash input; never part of a CSS selector, so any
+// script is safe. Letters, marks and numbers in every script are kept (the old
+// ASCII + Latin-1 set is unchanged, so existing colors stay put). A value with
+// none of those (an emoji, a symbol) keeps its own characters instead of
+// sanitizing to nothing and going uncolored.
 export function sanitizeValue(text: string): string {
-	return text.replace(/\s+/g, '').replace(/[^\wÀ-ſ-]/g, '');
+	const compact = text.normalize('NFC').replace(/\s+/g, '');
+	return compact.replace(/[^\wÀ-ſ\p{L}\p{M}\p{N}-]/gu, '') || compact;
 }
 
 // Same hash algorithm as colored-bases-properties so migration colors match exactly.
@@ -72,7 +78,7 @@ export async function parseBaseColumns(app: App, basePath: string): Promise<Set<
 		const raw = await app.vault.adapter.read(basePath);
 		const match = raw.match(/^properties:\s*\n((?:[ \t]+\S[^\n]*\n?)*)/m);
 		if (!match) return null;
-		const keys = [...match[1].matchAll(/^[ \t]+([\w.]+):/gm)].map(m => m[1]);
+		const keys = [...match[1].matchAll(/^[ \t]+([\w.\p{L}\p{M}\p{N}-]+):/gmu)].map(m => m[1]);
 		return keys.length ? new Set(keys) : null;
 	} catch {
 		return null;

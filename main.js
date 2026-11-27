@@ -158,7 +158,8 @@ async function saveConfig(app, basePath, config) {
   }
 }
 function sanitizeValue(text) {
-  return text.replace(/\s+/g, "").replace(/[^\wÀ-ſ-]/g, "");
+  const compact = text.normalize("NFC").replace(/\s+/g, "");
+  return compact.replace(/[^\wÀ-ſ\p{L}\p{M}\p{N}-]/gu, "") || compact;
 }
 function generateColorFromText(sanitized) {
   let hash = 0;
@@ -178,7 +179,7 @@ async function parseBaseColumns(app, basePath) {
     const match = raw.match(/^properties:\s*\n((?:[ \t]+\S[^\n]*\n?)*)/m);
     if (!match)
       return null;
-    const keys = [...match[1].matchAll(/^[ \t]+([\w.]+):/gm)].map((m) => m[1]);
+    const keys = [...match[1].matchAll(/^[ \t]+([\w.\p{L}\p{M}\p{N}-]+):/gmu)].map((m) => m[1]);
     return keys.length ? new Set(keys) : null;
   } catch (e) {
     return null;
